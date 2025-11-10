@@ -94,14 +94,8 @@ The compiled JAR will be in the `target` directory.
 - Spigot/Paper 1.20 or higher
 - Towny plugin
 
-## Support
 
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/yourusername/townycapture).
-
-## License
-
-[Add your license here]
 
 ## Author
 
-LogicHH
+Logichh - Milin
