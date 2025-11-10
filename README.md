@@ -98,4 +98,4 @@ The compiled JAR will be in the `target` directory.
 
 ## Author
 
-Logichh - Milin
+Logichh - Milin (Discord: milin001)
