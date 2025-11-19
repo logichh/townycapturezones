@@ -68,6 +68,7 @@ implements TabCompleter {
             }
             if (player.hasPermission("townycapture.admin.reset")) {
                 subCommands.add("reset");
+                subCommands.add("resetall");
             }
             if (player.hasPermission("townycapture.admin.reload")) {
                 subCommands.add("reload");

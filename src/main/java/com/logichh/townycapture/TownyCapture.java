@@ -1155,6 +1155,12 @@ extends JavaPlugin {
         // Stop the capture session
         stopCapture(point.getId());
         
+        // Cancel the capture task
+        BukkitTask task = captureTasks.remove(point.getId());
+        if (task != null) {
+            task.cancel();
+        }
+        
         // Log successful capture
         logSuccessfulCapture(point.getId());
         
@@ -1312,6 +1318,43 @@ extends JavaPlugin {
         broadcastMessage(message);
 
         return true;
+    }
+
+    public int resetAllPoints() {
+        int count = 0;
+        for (String pointId : capturePoints.keySet()) {
+            CapturePoint point = capturePoints.get(pointId);
+            if (point != null) {
+                // Stop any active capture session
+                if (activeSessions.containsKey(pointId)) {
+                    stopCapture(pointId, "Zone reset by admin");
+                }
+
+                // Reset fields but keep controlling town
+                point.setCapturingTown(null);
+                point.setCaptureProgress(0.0);
+                point.setLastCapturingTown("");
+                point.setLastCaptureTime(0L);
+                point.setColor("#8B0000"); // Reset to default dark red color
+
+                count++;
+            }
+        }
+
+        // Update Dynmap if enabled
+        if (dynmapEnabled) {
+            updateAllMarkers();
+        }
+
+        // Save changes
+        saveCapturePoints();
+
+        // Broadcast reset message
+        String message = config.getString("messages.capture.reset_all", "&cAll capture points have been reset!")
+            .replace("%count%", String.valueOf(count));
+        broadcastMessage(message);
+
+        return count;
     }
 
     public boolean deleteCapturePoint(String pointId) {
@@ -1607,6 +1650,13 @@ extends JavaPlugin {
         this.removeBeacon(point);
         this.removeCaptureBossBar(pointId);
         this.activeSessions.remove(pointId);
+        // Cancel the capture task
+        BukkitTask task = this.captureTasks.remove(pointId);
+        if (task != null) {
+            task.cancel();
+        }
+        // Reset capturing town
+        point.setCapturingTown(null);
         Object message = this.config.getString("messages.capture.cancelled", "\u00a7c%town%'s capture of %point% has been cancelled!");
         message = ((String)message).replace("%town%", session.getTownName()).replace("%point%", point.getName());
         if (reason != null && !reason.isEmpty()) {

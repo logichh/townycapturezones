@@ -193,6 +193,13 @@ public class CaptureCommands implements CommandExecutor {
                 }
                 handleReset(sender, args[1]);
                 return true;
+            case "resetall":
+                if (!sender.hasPermission("capturepoints.admin.reset")) {
+                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    return true;
+                }
+                handleResetAll(sender);
+                return true;
             case "showzone":
                 if (player == null) {
                     sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
@@ -313,6 +320,11 @@ public class CaptureCommands implements CommandExecutor {
         }
     }
 
+    private void handleResetAll(CommandSender sender) {
+        int count = plugin.resetAllPoints();
+        sender.sendMessage(plugin.colorize("&aAll capture points have been reset! " + count + " points processed."));
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(plugin.colorize("&6&l=== TownyCapture Help ==="));
         sender.sendMessage(plugin.colorize("&e/capturepoint help &7- Show this help message"));
@@ -338,6 +350,7 @@ public class CaptureCommands implements CommandExecutor {
         sender.sendMessage(plugin.colorize("&e/capturepoint types &7- List available point types"));
         sender.sendMessage(plugin.colorize("&e/capturepoint forcecapture <point> <town> &7- Force capture a point"));
         sender.sendMessage(plugin.colorize("&e/capturepoint reset <point> &7- Reset a capture point"));
+        sender.sendMessage(plugin.colorize("&e/capturepoint resetall &7- Reset all capture points (keeps owners)"));
         sender.sendMessage(plugin.colorize("&e/capturepoint reload &7- Reload configuration"));
         sender.sendMessage(plugin.colorize("&e/capturepoint test &7- Create test zones for manual testing"));
         sender.sendMessage(plugin.colorize("&e/capturepoint testall &7- Run automated comprehensive tests"));
