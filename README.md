@@ -17,6 +17,7 @@ TownyCapture extends the Towny plugin by adding strategic capture points that to
 - **Dynmap Integration**: Visual representation of capture points on Dynmap
 - **WorldGuard Integration**: Region protection support
 - **PlaceholderAPI Support**: Use capture data in other plugins
+- **bStats Metrics**: Anonymous usage statistics collection
 
 ## Dependencies
 
@@ -36,6 +37,8 @@ TownyCapture extends the Towny plugin by adding strategic capture points that to
 3. Ensure Towny is installed
 4. Restart your server
 5. Configure the plugin in `plugins/TownyCapture/config.yml`
+
+**Note**: This plugin uses bStats for anonymous usage statistics. You can opt-out in the `plugins/bStats/config.yml` file if desired.
 
 ## Commands
 

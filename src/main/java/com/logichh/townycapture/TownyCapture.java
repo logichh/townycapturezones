@@ -86,6 +86,7 @@ import org.dynmap.markers.AreaMarker;
 import org.dynmap.markers.MarkerAPI;
 import org.dynmap.markers.MarkerSet;
 import org.dynmap.markers.Marker;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.scheduler.BukkitRunnable;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.ChatColor;
@@ -186,6 +187,14 @@ extends JavaPlugin {
         }
         
         getLogger().info("TownyCapture has been enabled!");
+
+        // Initialize bStats metrics
+        int pluginId = 28044; // bStats plugin ID for TownyCapture
+        Metrics metrics = new Metrics(this, pluginId);
+
+        // Add custom charts
+        metrics.addCustomChart(new Metrics.SingleLineChart("capture_points", () -> capturePoints.size()));
+        metrics.addCustomChart(new Metrics.SingleLineChart("active_sessions", () -> activeSessions.size()));
     }
     
     public void autoShowBoundariesForPlayer(Player player) {
