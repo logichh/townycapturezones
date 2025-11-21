@@ -108,6 +108,7 @@ extends JavaPlugin {
     public Map<UUID, Boolean> hiddenBossBars = Collections.synchronizedMap(new HashMap());
     public Map<String, BukkitTask> boundaryTasks = Collections.synchronizedMap(new HashMap());
     public Map<UUID, Boolean> disabledNotifications = Collections.synchronizedMap(new HashMap()); // Track who has disabled notifications
+    private BukkitTask hourlyRewardTask;
     private boolean dynmapEnabled = false;
     private DynmapAPI dynmapAPI = null;
     private MarkerAPI markerAPI = null;
@@ -128,6 +129,13 @@ extends JavaPlugin {
         
         // Load config
         this.config = getConfig();
+        
+        // Debug: Log rewards section
+        if (this.config.contains("rewards")) {
+            this.getLogger().info("Rewards config section: " + this.config.getConfigurationSection("rewards").getValues(true));
+        } else {
+            this.getLogger().info("No rewards section found in config");
+        }
         
         // Create default config values if needed
         createDefaultConfig();
@@ -158,6 +166,7 @@ extends JavaPlugin {
         // Start tasks
         startSessionTimeoutChecker();
         startAutoSave();
+        startHourlyRewards();
         
         // Register listeners
         getServer().getPluginManager().registerEvents(new CaptureEvents(this), this);
@@ -347,6 +356,17 @@ extends JavaPlugin {
                 this.getLogger().warning("Point " + point.getId() + " max players too high, setting to maximum");
                 point.setMaxPlayers(this.config.getInt("settings.capture-point.max-players", 10));
             }
+            // Validate reward settings
+            String rewardType = this.config.getString("rewards.reward-type", "daily");
+            if (!"daily".equalsIgnoreCase(rewardType) && !"hourly".equalsIgnoreCase(rewardType)) {
+                this.getLogger().warning("Invalid reward-type value '" + rewardType + "', using default: daily");
+                this.config.set("rewards.reward-type", "daily");
+            }
+            int hourlyInterval = this.config.getInt("rewards.hourly-interval", 3600);
+            if (hourlyInterval < 1) {
+                this.getLogger().warning("Invalid hourly-interval value, using default: 3600");
+                this.config.set("rewards.hourly-interval", 3600);
+            }
             this.getLogger().info("Configuration validation completed successfully");
             return true;
         }
@@ -385,6 +405,29 @@ extends JavaPlugin {
         }.runTaskTimer(this, interval * 20L, interval * 20L);
     }
 
+    private void startHourlyRewards() {
+        String rewardType = this.config.getString("rewards.reward-type", "daily");
+        this.getLogger().info("Reward type from config: " + rewardType);
+        if ("hourly".equalsIgnoreCase(rewardType)) {
+            this.getLogger().info("Config contains rewards.hourly-interval: " + this.config.contains("rewards.hourly-interval"));
+            this.getLogger().info("Raw config value for hourly-interval: " + this.config.get("rewards.hourly-interval"));
+            int intervalSeconds = this.config.getInt("rewards.hourly-interval", 3600);
+            this.getLogger().info("Parsed intervalSeconds: " + intervalSeconds);
+            this.getLogger().info("Starting hourly rewards with interval: " + intervalSeconds + " seconds");
+            long intervalTicks = intervalSeconds * 20L; // Convert seconds to ticks
+            this.hourlyRewardTask = new BukkitRunnable() {
+                @Override
+                public void run() {
+                    getLogger().info("Running hourly reward distribution...");
+                    distributeHourlyRewards();
+                }
+            }.runTaskTimer(this, intervalTicks, intervalTicks);
+            this.getLogger().info("Hourly reward task scheduled successfully");
+        } else {
+            this.getLogger().info("Hourly rewards not enabled (reward-type: " + rewardType + ")");
+        }
+    }
+
     public void onDisable() {
         for (BossBar bossBar : this.captureBossBars.values()) {
             if (bossBar == null) continue;
@@ -409,6 +452,9 @@ extends JavaPlugin {
             this.removeBeacon(point);
         }
         this.saveCapturePoints();
+        if (this.hourlyRewardTask != null && !this.hourlyRewardTask.isCancelled()) {
+            this.hourlyRewardTask.cancel();
+        }
         this.cleanupResources();
         this.getLogger().info("TownyCapture has been disabled!");
     }
@@ -517,7 +563,20 @@ extends JavaPlugin {
             defaultCommands.add("/spawn");
             this.config.set("blocked-commands", defaultCommands);
         }
-        this.saveConfig();
+        if (!this.config.contains("rewards.reward-type")) {
+            this.config.set("rewards.reward-type", "daily");
+        }
+        if (!this.config.contains("rewards.hourly-interval")) {
+            this.config.set("rewards.hourly-interval", 3600);
+        }
+        if (!this.config.contains("messages.reward.hourly_distributed")) {
+            this.config.set("messages.reward.hourly_distributed", "&a%town% has received %reward% hourly reward for controlling %point%!");
+        }
+        try {
+            this.saveConfig();
+        } catch (Exception e) {
+            this.getLogger().warning("Failed to save default config: " + e.getMessage());
+        }
         this.loadPointTypes();
     }
 
@@ -1503,6 +1562,18 @@ extends JavaPlugin {
         }
     }
 
+    public void handleNewDay() {
+        this.getLogger().info("New day event triggered");
+        String rewardType = this.config.getString("rewards.reward-type", "daily");
+        this.getLogger().info("Reward type for new day: " + rewardType);
+        if ("daily".equalsIgnoreCase(rewardType)) {
+            this.getLogger().info("Distributing daily rewards");
+            distributeRewards();
+        } else {
+            this.getLogger().info("Daily rewards disabled (using hourly mode)");
+        }
+    }
+
     public void distributeRewards() {
         for (CapturePoint point : this.capturePoints.values()) {
             if (point.getControllingTown().isEmpty()) continue;
@@ -1523,6 +1594,43 @@ extends JavaPlugin {
             }
             catch (Exception e) {
                 this.getLogger().warning("Failed to give reward to " + town.getName());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void distributeHourlyRewards() {
+        this.getLogger().info("Distributing hourly rewards. Capture points: " + this.capturePoints.size());
+        for (CapturePoint point : this.capturePoints.values()) {
+            this.getLogger().info("Checking point: " + point.getName() + ", controlling town: '" + point.getControllingTown() + "'");
+            if (point.getControllingTown().isEmpty()) {
+                this.getLogger().info("Point " + point.getName() + " has no controlling town, skipping");
+                continue;
+            }
+            TownyAPI api = TownyAPI.getInstance();
+            if (api == null) {
+                this.getLogger().warning("TownyAPI is null!");
+                continue;
+            }
+            Town town = api.getTown(point.getControllingTown());
+            if (town == null) {
+                this.getLogger().warning("Town '" + point.getControllingTown() + "' not found, resetting point");
+                point.setControllingTown("");
+                if (!this.dynmapEnabled) continue;
+                this.townUpdater.updateMarker(point);
+                continue;
+            }
+            try {
+                double hourlyReward = point.getReward() / 24.0;
+                this.getLogger().info("Depositing " + hourlyReward + " to town " + town.getName());
+                town.getAccount().deposit(hourlyReward, "Hourly reward for controlling " + point.getName());
+                this.getLogger().info("Gave " + hourlyReward + " to " + town.getName() + " for controlling " + point.getName() + " (hourly)");
+                String message = this.config.getString("messages.reward.hourly_distributed", "\u00a7a%town% has received %reward% hourly reward for controlling %point%!");
+                message = message.replace("%town%", town.getName()).replace("%reward%", String.format("%.1f", hourlyReward)).replace("%point%", point.getName());
+                Bukkit.broadcastMessage((String)this.colorize(message));
+            }
+            catch (Exception e) {
+                this.getLogger().warning("Failed to give hourly reward to " + town.getName() + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }

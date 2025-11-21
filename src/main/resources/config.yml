@@ -3,7 +3,7 @@
 # Author: LogicHH
 # Discord: @milin001
 # Website: conquerearthmc.com
-# Version: 1.0.0
+# Version: 1.0.2
 # ==============================================
 #
 # This configuration file contains all settings for TownyCapture.
@@ -211,6 +211,16 @@ capture-conditions:
 # Reward Settings
 # ==============================================
 rewards:
+  # Reward distribution type: "daily" or "hourly"
+  # Daily: Rewards given once per Towny day to controlling towns
+  # Hourly: Rewards given every hour proportional to holding time (daily_reward / 24 per hour)
+  reward-type: "hourly"
+  
+  # Hourly reward interval in seconds (default: 3600 = 1 hour)
+  # Only used when reward-type is "hourly"
+  # Minimum: 1 second
+  hourly-interval: 3600
+  
   # Item rewards for capture points
   item-payouts:
     default: None
@@ -402,6 +412,7 @@ messages:
 
   reward:
     distributed: '&a%town% has received %reward% for controlling %point%!'
+    hourly_distributed: '&a%town% has received %reward% hourly reward for controlling %point%!'
     item_distributed: '&a%town% has received %item_payout% for controlling %point%!'
 
   help:

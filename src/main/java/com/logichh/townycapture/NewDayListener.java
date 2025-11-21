@@ -23,6 +23,6 @@ implements Listener {
 
     @EventHandler
     public void onNewDay(NewDayEvent event) {
-        this.plugin.distributeRewards();
+        this.plugin.handleNewDay();
     }
 }

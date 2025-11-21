@@ -1,5 +1,41 @@
 # TownyCapture - Change Log
 
+## Version 1.0.2 - [2025]
+
+### ✨ New Features
+
+#### 💰 Configurable Reward System
+A flexible reward distribution system that allows server owners to choose between daily or hourly reward payouts, with full customization options.
+
+**Reward Types:**
+- **Daily Mode**: Traditional system - towns receive full daily reward once per Towny day
+- **Hourly Mode**: Proportional rewards - towns receive `(daily_reward / 24)` every hour they control a zone
+
+**Configuration:**
+```yaml
+rewards:
+  reward-type: "hourly"  # "daily" or "hourly"
+  hourly-interval: 3600  # Interval in seconds (default: 1 hour)
+```
+
+**How It Works:**
+- **Daily Mode**: Same as before - full reward at Towny new day
+- **Hourly Mode**: 
+  - Every hour, controlling towns get proportional reward
+  - Example: 1000 daily reward = 41.67 hourly reward (1000/24)
+  - Holding for 6 hours = 6 × 41.67 = 250 total reward
+  - Holding for 24 hours = same total as daily mode (1000)
+
+**Benefits:**
+- More frequent feedback for players
+- Rewards scale with actual holding time
+- Server owners can choose based on their economy
+- Fully backward compatible
+
+**Messages:**
+- Daily: "Town has received 1000 for controlling Point!"
+- Hourly: "Town has received 41.67 hourly reward for controlling Point!"
+
 ## Version 1.0.1 - [2025]
 
 ### 🐛 Bug Fixes
