@@ -1,6 +1,6 @@
 /*
  * Decompiled with CFR 0.152.
- * 
+ *
  * Could not load the following classes:
  *  org.bukkit.Bukkit
  *  org.bukkit.Color
@@ -22,9 +22,7 @@ import java.util.Map;
 import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.object.Town;
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -95,7 +93,7 @@ public class CaptureCommands implements CommandExecutor {
                 }
                 boolean currentlyDisabled = plugin.disabledNotifications.getOrDefault(player.getUniqueId(), false);
                 plugin.disabledNotifications.put(player.getUniqueId(), !currentlyDisabled);
-                
+
                 if (!currentlyDisabled) {
                     // Turn off all notifications
                     plugin.hideBossBarForPlayer(player);
@@ -309,7 +307,7 @@ public class CaptureCommands implements CommandExecutor {
         }
         sender.sendMessage(Messages.get("help.point-types-header"));
         for (Map.Entry<String, String> entry : types.entrySet()) {
-            sender.sendMessage(Messages.get("help.point-types-format", 
+            sender.sendMessage(Messages.get("help.point-types-format",
                 Map.of("type", entry.getKey(), "description", entry.getValue())));
         }
     }
@@ -343,7 +341,7 @@ public class CaptureCommands implements CommandExecutor {
         sender.sendMessage(Messages.get("help.main.capture"));
         sender.sendMessage(Messages.get("help.main.showzone"));
         sender.sendMessage(Messages.get("help.main.notifications"));
-        
+
         if (sender.hasPermission("capturepoints.admin")) {
             sender.sendMessage(Messages.get("help.main.admin-section"));
             sender.sendMessage(Messages.get("help.main.admin"));
@@ -385,7 +383,7 @@ public class CaptureCommands implements CommandExecutor {
                 CaptureSession session = this.plugin.getActiveSessions().get(point.getId());
                 status = "&6&lCAPTURING &7by &f" + session.getTownName();
             }
-            player.sendMessage(Messages.get("messages.zone.point-entry", 
+            player.sendMessage(Messages.get("messages.zone.point-entry",
                 Map.of("name", point.getName(), "status", status)));
         }
         player.sendMessage(Messages.get("messages.zone.stats-header"));
@@ -449,35 +447,14 @@ public class CaptureCommands implements CommandExecutor {
         Location chunkCenter = new Location(playerLoc.getWorld(), (double)((chunkX << 4) + 8), playerLoc.getY(), (double)((chunkZ << 4) + 8));
         this.plugin.createCapturePoint(id, name, chunkCenter, 0, 0.0);
         player.sendMessage(Messages.get("messages.chunk.protected-success"));
-        player.sendMessage(Messages.get("messages.chunk.coordinates", 
+        player.sendMessage(Messages.get("messages.chunk.coordinates",
             Map.of("x", String.valueOf(chunkX), "z", String.valueOf(chunkZ))));
         this.showChunkBoundaries(player, chunkX, chunkZ);
     }
 
     private void showChunkBoundaries(final Player player, int chunkX, int chunkZ) {
-        final int minX = chunkX << 4;
-        final int minZ = chunkZ << 4;
-        final int maxX = minX + 15;
-        final int maxZ = minZ + 15;
-        final int y = player.getLocation().getBlockY();
-        new BukkitRunnable(){
-            int count = 0;
-
-            public void run() {
-                if (this.count >= 200) {
-                    this.cancel();
-                    return;
-                }
-                for (int x = minX; x <= maxX; ++x) {
-                    for (int z = minZ; z <= maxZ; ++z) {
-                        if (x != minX && x != maxX && z != minZ && z != maxZ) continue;
-                        Location particleLoc = new Location(player.getWorld(), (double)x + 0.5, (double)(y + 1), (double)z + 0.5);
-                        player.getWorld().spawnParticle(Particle.REDSTONE, particleLoc, 1, (Object)new Particle.DustOptions(Color.RED, 1.0f));
-                    }
-                }
-                ++this.count;
-            }
-        }.runTaskTimer((Plugin)this.plugin, 0L, 1L);
+        // Chunk boundary visualization disabled to avoid scheduled tasks and heavy loops
+        player.sendMessage(Messages.get("messages.chunk.visualization-disabled"));
     }
 
     private void handleCreateCommand(Player player, String[] args) {
@@ -485,36 +462,36 @@ public class CaptureCommands implements CommandExecutor {
         String type = args[2];
         String radiusStr = args[3];
         String rewardStr = args[4];
-        
+
         if (id.isEmpty() || id.length() > 32) {
             player.sendMessage(Messages.get("errors.invalid-id"));
             return;
         }
-        
+
         if (type.isEmpty() || type.length() > 64) {
             player.sendMessage(Messages.get("errors.invalid-type"));
             return;
         }
-        
+
         try {
             int chunkRadius = Integer.parseInt(radiusStr);
             double reward = Double.parseDouble(rewardStr);
-            
+
             if (chunkRadius <= 0) {
                 player.sendMessage(Messages.get("errors.invalid-radius"));
                 return;
             }
-            
+
             if (reward < 0.0) {
                 player.sendMessage(Messages.get("errors.invalid-reward"));
                 return;
             }
-            
+
             if (plugin.getCapturePoints().containsKey(id)) {
                 player.sendMessage(Messages.get("errors.id-exists"));
                 return;
             }
-            
+
             plugin.createCapturePoint(id, type, player.getLocation(), chunkRadius, reward);
             player.sendMessage(Messages.get("messages.create.success"));
             Map<String, String> placeholders = new HashMap<>();
@@ -533,132 +510,49 @@ public class CaptureCommands implements CommandExecutor {
             return;
         }
 
-        // Check if already showing for this player
-        String key = player.getUniqueId() + "_" + pointId;
-        if (this.plugin.boundaryTasks.containsKey(key)) {
-            // Toggle off
-            this.plugin.boundaryTasks.get(key).cancel();
-            this.plugin.boundaryTasks.remove(key);
-            player.sendMessage(this.plugin.colorize("&7Zone boundary display hidden for " + point.getName()));
-            return;
-        }
-
-        // Toggle on
-        player.sendMessage(this.plugin.colorize("&eShowing boundaries for " + point.getName() + " (circular zone)"));
-        player.sendMessage(this.plugin.colorize("&7Type /capturepoint showzone " + pointId + " again to hide"));
-
-        Location center = point.getLocation();
-        int blockRadius = point.getChunkRadius() * 16;
-        int sides = Math.max(256, blockRadius * 4); // Dense particles with minimal gaps
-
-        final TownyCapture pluginRef = this.plugin;
-        BukkitTask task = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!player.isOnline()) {
-                    this.cancel();
-                    pluginRef.boundaryTasks.remove(key);
-                    return;
-                }
-
-                // Get world's surface height for each position
-                World world = center.getWorld();
-                
-                // Draw circular boundary with vertical columns of particles
-                // Update every 10 ticks to be less intensive
-                for (int i = 0; i < sides; i++) {
-                    double angle = 2.0 * Math.PI * i / sides;
-                    double x = center.getX() + blockRadius * Math.cos(angle);
-                    double z = center.getZ() + blockRadius * Math.sin(angle);
-                    
-                    // Get surface height at this position
-                    int surfaceY = world.getHighestBlockYAt((int)Math.floor(x), (int)Math.floor(z));
-                    
-                    // Spawn particles from below ground up 40 blocks, going through any blocks
-                    for (int h = -10; h <= 40; h++) {
-                        int yPos = surfaceY + h;
-                        // Only spawn if within reasonable world bounds
-                        if (yPos > 0 && yPos < 320) {
-                            Location particleLoc = new Location(world, x, yPos, z);
-                            // Try GLOW particle first for maximum visibility, fallback to SOUL if not available
-                            try {
-                                player.getWorld().spawnParticle(Particle.GLOW, particleLoc, 1);
-                            } catch (Exception e) {
-                                // Fallback to SOUL particle which glows bright cyan
-                                player.getWorld().spawnParticle(Particle.SOUL, particleLoc, 1);
-                            }
-                        }
-                    }
-                }
-            }
-        }.runTaskTimer((Plugin)pluginRef, 0L, 10L);
-        
-        this.plugin.boundaryTasks.put(key, task);
+        // Boundary visualization has been disabled to avoid scheduled tasks.
+        player.sendMessage(this.plugin.colorize("&cZone boundary visualization is disabled on this build."));
     }
-    
+
     private void toggleAllZoneBoundaries(Player player) {
-        int hiddenCount = 0;
-        int shownCount = 0;
-        
-        for (CapturePoint point : this.plugin.getCapturePoints().values()) {
-            String key = player.getUniqueId() + "_" + point.getId();
-            if (this.plugin.boundaryTasks.containsKey(key)) {
-                // Toggle off
-                this.plugin.boundaryTasks.get(key).cancel();
-                this.plugin.boundaryTasks.remove(key);
-                hiddenCount++;
-            } else {
-                // Show zone
-                showZoneBoundaries(player, point.getId());
-                shownCount++;
-            }
-        }
-        
-        if (hiddenCount > 0 && shownCount > 0) {
-            player.sendMessage(plugin.colorize("&7Toggled " + hiddenCount + " zones off, " + shownCount + " zones on"));
-        } else if (hiddenCount > 0) {
-            player.sendMessage(plugin.colorize("&cAll zone boundaries hidden"));
-        } else if (shownCount > 0) {
-            player.sendMessage(plugin.colorize("&aAll zone boundaries visible"));
-        } else {
-            player.sendMessage(plugin.colorize("&cNo capture points found"));
-        }
+        // Boundary visualization disabled; inform user
+        player.sendMessage(plugin.colorize("&cZone boundary visualization is disabled on this build."));
     }
-    
+
     private void runTests(Player player) {
         player.sendMessage(plugin.colorize("&6&l=== Running Basic Tests ==="));
         player.sendMessage(plugin.colorize("&7Creating test zones..."));
-        
+
         // Test 1: Create test zones
         Location loc1 = player.getLocation().clone().add(20, 0, 0);
         Location loc2 = player.getLocation().clone().add(-20, 0, 0);
         Location loc3 = player.getLocation().clone().add(0, 0, 20);
-        
+
         plugin.createCapturePoint("test_zone_1", "Test Zone 1", loc1, 3, 1000.0);
         plugin.createCapturePoint("test_zone_2", "Test Zone 2", loc2, 5, 2000.0);
         plugin.createCapturePoint("test_zone_3", "Test Zone 3", loc3, 2, 500.0);
-        
+
         player.sendMessage(plugin.colorize("&a[OK] Created 3 test zones"));
         player.sendMessage(plugin.colorize("&7You can now test manually by running /capturepoint capture"));
         player.sendMessage(plugin.colorize("&7Or run &e/capturepoint testall &7for automated testing"));
     }
-    
+
     private void runAllTests(Player player) {
         player.sendMessage(plugin.colorize("&6&l========== COMPREHENSIVE CAPTURE TESTS =========="));
-        
+
         final int[] testsPassed = {0};
         final int[] testsTotal = {0};
-        
+
         // Test 1-3: Basic Zone Creation
         player.sendMessage(plugin.colorize("&7[Test 1-3] Creating multiple test zones..."));
         Location loc1 = player.getLocation().clone().add(50, 0, 50);
         Location loc2 = player.getLocation().clone().add(-50, 0, 50);
         Location loc3 = player.getLocation().clone().add(50, 0, -50);
-        
+
         plugin.createCapturePoint("test_zone_1", "Test Zone 1", loc1, 5, 1000.0);
         plugin.createCapturePoint("test_zone_2", "Test Zone 2", loc2, 5, 2000.0);
         plugin.createCapturePoint("test_zone_3", "Test Zone 3", loc3, 5, 1500.0);
-        
+
         for (int i = 1; i <= 3; i++) {
             testsTotal[0]++;
             if (plugin.getCapturePoints().containsKey("test_zone_" + i)) {
@@ -668,7 +562,7 @@ public class CaptureCommands implements CommandExecutor {
                 player.sendMessage(plugin.colorize("&c[FAIL] Test zone " + i + " creation failed"));
             }
         }
-        
+
         // Test 4: Normal Capture
         player.sendMessage(plugin.colorize("&7[Test 4] Testing normal capture (5 seconds)..."));
         testsTotal[0]++;
@@ -677,7 +571,7 @@ public class CaptureCommands implements CommandExecutor {
             if (started && plugin.getActiveSession("test_zone_1") != null) {
                 player.sendMessage(plugin.colorize("&a[PASS] Normal capture started"));
                 testsPassed[0]++;
-                
+
                 // Test 5: Attempt capture while already being captured
                 testsTotal[0]++;
                 Bukkit.getScheduler().runTaskLater((Plugin)plugin, () -> {
@@ -689,7 +583,7 @@ public class CaptureCommands implements CommandExecutor {
                     } else {
                         player.sendMessage(plugin.colorize("&c[FAIL] Duplicate capture allowed"));
                     }
-                    
+
                     // Wait for capture 1 to complete
                     Bukkit.getScheduler().runTaskLater((Plugin)plugin, () -> {
                         // Test 6: Verify capture completion
@@ -701,7 +595,7 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                             player.sendMessage(plugin.colorize("&c[FAIL] Capture did not complete"));
                         }
-                        
+
                         // Test 7: Attempt to capture already-captured zone
                         testsTotal[0]++;
                         boolean alreadyCapturedStarted = plugin.startTestCapture(player, "test_zone_1", 1, 5);
@@ -711,7 +605,7 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                             player.sendMessage(plugin.colorize("&c[FAIL] Allowed capture of controlled zone"));
                         }
-                        
+
                         // Test 8: Admin reset zone
                         testsTotal[0]++;
                         if (plugin.resetPoint("test_zone_1")) {
@@ -720,7 +614,7 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                             player.sendMessage(plugin.colorize("&c[FAIL] Zone reset failed"));
                         }
-                        
+
                         // Test 9: Capture after reset
                         testsTotal[0]++;
                         player.sendMessage(plugin.colorize("&7[Test 9] Capturing reset zone..."));
@@ -732,7 +626,7 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                                 player.sendMessage(plugin.colorize("&c[FAIL] Cannot capture after reset"));
                             }
-                            
+
                             // Wait for second capture to complete
                             Bukkit.getScheduler().runTaskLater((Plugin)plugin, () -> {
                                 // Test 10: Admin stop capture
@@ -743,7 +637,7 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                                     player.sendMessage(plugin.colorize("&c[FAIL] Admin stop failed"));
                                 }
-                                
+
                                 // Test 11: Force capture
                                 testsTotal[0]++;
                                 player.sendMessage(plugin.colorize("&7[Test 11] Testing force capture..."));
@@ -763,7 +657,7 @@ public class CaptureCommands implements CommandExecutor {
                                         player.sendMessage(plugin.colorize("&7[SKIP] Force capture - no town"));
                                         testsPassed[0]++;
                                     }
-                                    
+
                                     // Test 12: Multiple concurrent captures
                                     testsTotal[0]++;
                                     player.sendMessage(plugin.colorize("&7[Test 12] Testing multiple concurrent captures..."));
@@ -777,7 +671,7 @@ public class CaptureCommands implements CommandExecutor {
                                         } else {
                                             player.sendMessage(plugin.colorize("&c[FAIL] Multiple captures failed"));
                                         }
-                                        
+
                                         // Wait for concurrent captures
                                         Bukkit.getScheduler().runTaskLater((Plugin)plugin, () -> {
                                             // Test 13-14: Boundary cleanup on deletion
@@ -788,7 +682,7 @@ public class CaptureCommands implements CommandExecutor {
                                             } else {
                                                 player.sendMessage(plugin.colorize("&c[FAIL] Zone 1 deletion failed"));
                                             }
-                                            
+
                                             testsTotal[0]++;
                                             if (plugin.deleteCapturePoint("test_zone_2") && plugin.deleteCapturePoint("test_zone_3")) {
                                                 player.sendMessage(plugin.colorize("&a[PASS] All zones cleaned up"));
@@ -796,11 +690,11 @@ public class CaptureCommands implements CommandExecutor {
         } else {
                                                 player.sendMessage(plugin.colorize("&c[FAIL] Zone cleanup failed"));
                                             }
-                                            
+
                                             // Final results
                                             player.sendMessage(plugin.colorize("&6&l========== FINAL TEST RESULTS =========="));
                                             player.sendMessage(plugin.colorize("&eTests Passed: &a" + testsPassed[0] + "&7/&f" + testsTotal[0]));
-                                            
+
                                             if (testsPassed[0] == testsTotal[0]) {
                                                 player.sendMessage(plugin.colorize("&a&l[SUCCESS] ALL TESTS PASSED!"));
                                             } else {

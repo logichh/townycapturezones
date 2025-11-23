@@ -17,35 +17,35 @@
 settings:
   # Whether to show capture-related chat messages
   show-chat-messages: true
-  
+
   # Minimum number of players online to allow capturing
   # This helps prevent captures when the server is empty
   min-online-players: 1
-  
+
   # Session timeout in milliseconds (default: 1 hour)
   # How long a capture session can be inactive before being cancelled
   session-timeout: 3600000
-  
+
   # Error throttle duration in milliseconds (default: 1 minute)
   # Prevents spam of error messages for the same issue
   error-throttle-ms: 60000
-  
+
   # Debug mode for detailed logging
   # Enable this to see detailed debug messages in console
   debug-mode: false
-  
+
   # Auto-save interval in seconds (default: 5 minutes)
   # How often to save capture point data
   auto-save-interval: 300
-  
+
   # Maximum number of capture points allowed
   # Set to 0 for unlimited points
   max-capture-points: 50
-  
+
   # Maximum number of active captures allowed
   # Set to 0 for unlimited captures
   max-active-captures: 10
-  
+
   # Active language for messages (default: "en")
   # Supports both short codes ("en", "fr") and full locales ("en_US", "fr_FR")
   # Falls back to "en" if selected language is not available
@@ -94,33 +94,33 @@ capture:
 sounds:
   # Enable/disable all capture sounds
   enabled: true
-  
+
   # Sound effects for different capture events
   capture-started:
     sound: "entity.wither.ambient"
     volume: 1.0
     pitch: 1.2
-    
+
   capture-progress:
     sound: "block.note_block.pling"
     volume: 0.8
     pitch: 1.0
-    
+
   capture-phase-started:
     sound: "entity.wither.spawn"
     volume: 1.2
     pitch: 1.0
-    
+
   capture-complete:
     sound: "entity.player.levelup"
     volume: 1.5
     pitch: 1.2
-    
+
   capture-failed:
     sound: "entity.ender_dragon.death"
     volume: 1.0
     pitch: 0.8
-    
+
   point-reset:
     sound: "entity.experience_orb.pickup"
     volume: 1.0
@@ -130,18 +130,34 @@ sounds:
 # ==============================================
 reinforcements:
   # Enable mob reinforcements during capture
-  enabled: true
-  
+  # Default: disabled to minimize server load. Enable on servers that can handle entity load.
+  enabled: false
+
   # Number of mobs to spawn per wave
   mobs-per-wave: 1
-  
+
   # Time between reinforcement waves (in seconds)
   wave-interval: 30
-  
+
   # Maximum number of reinforcements per capture point
   # Note: With phased spawning, this can accumulate over time
   max-mobs-per-point: 50
-  
+
+  # Global maximum number of reinforcement mobs active across all points
+  # Helps prevent excessive entity counts causing server lag
+  max-total-mobs: 200
+
+  # Tracking and phase intervals (in ticks). Default 40 ticks = 2 seconds.
+  # Increasing these reduces CPU usage at the cost of responsiveness.
+  tracking-interval-ticks: 40
+  phase-interval-ticks: 40
+
+  # Spawn smoothing spreads a large wave across multiple ticks to avoid tick spikes
+  spawn-smoothing:
+    enabled: true
+    # Maximum mobs to spawn per tick when smoothing is active
+    max-per-tick: 5
+
   # Mob types that can spawn (with hat items for daylight)
   # WARNING: Do not include ENDER_DRAGON, it's too powerful and will break things
   mob-types:
@@ -156,8 +172,8 @@ reinforcements:
     - "PILLAGER"
     - "PIGLIN_BRUTE"
     - "BOGGED"
- 
-  
+
+
   # Hat items (worn by mobs to prevent burning in sunlight)
   # Golden helmets needed for nether mobs (blaze, magma cube, etc.)
   hat-items:
@@ -171,26 +187,26 @@ reinforcements:
 capture-point:
   # Minimum radius in chunks (1 chunk = 16 blocks)
   min-radius: 1
-  
+
   # Maximum radius in chunks
   max-radius: 10
-  
+
   # Minimum reward amount in server currency
   min-reward: 100.0
-  
+
   # Maximum reward amount in server currency
   max-reward: 10000.0
-  
+
   # Minimum cooldown in milliseconds (default: 1 hour)
   # Time before a point can be captured again
   min-cooldown: 3600000
-  
+
   # Maximum cooldown in milliseconds (default: 24 hours)
   max-cooldown: 86400000
-  
+
   # Minimum players required per point
   min-players: 1
-  
+
   # Maximum players allowed per point
   max-players: 10
 
@@ -201,11 +217,11 @@ capture-conditions:
   allowed-hours:
     start: 0  # 12 AM
     end: 24   # 12 AM (24 = no end time)
-  
+
   # Weather restrictions
   allow-capture-in-rain: true
   allow-capture-in-storm: true
-  
+
   # Anti-exploit settings
   anti-exploit:
     # Minimum distance between capture points (in chunks)
@@ -222,12 +238,12 @@ rewards:
   # Daily: Rewards given once per Towny day to controlling towns
   # Hourly: Rewards given every hour proportional to holding time (daily_reward / 24 per hour)
   reward-type: "hourly"
-  
+
   # Hourly reward interval in seconds (default: 3600 = 1 hour)
   # Only used when reward-type is "hourly"
   # Minimum: 1 second
   hourly-interval: 3600
-  
+
   # Item rewards for capture points
   item-payouts:
     default: None
@@ -240,35 +256,35 @@ rewards:
 protection:
   # Whether to prevent claiming inside capture zones
   prevent-claiming: true
-  
+
   # Whether to prevent setting homes inside capture zones
   prevent-homes: true
-  
+
   # Whether to prevent teleporting inside capture zones
   prevent-teleporting: true
-  
+
   # Whether to prevent using items inside capture zones
   prevent-item-use: false
-  
+
   # Whether to prevent breaking blocks inside capture zones
   prevent-block-break: true
-  
+
   # Whether to prevent placing blocks inside capture zones
   prevent-block-place: true
-  
+
   # Whether to prevent explosions inside capture zones
   prevent-explosions: true
-  
+
   # Whether to prevent PvP inside capture zones
   prevent-pvp: false
-  
+
   # Buffer zone settings (in chunks)
   buffer-zone:
     # Whether to apply protection to buffer zones
     enabled: true
     # Size of buffer zone in chunks
     size: 1
-    
+
   # Messages for protection violations
   messages:
     claiming-blocked: '&cYou cannot claim land in capture zones!'
