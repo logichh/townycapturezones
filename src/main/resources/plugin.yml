@@ -1,0 +1,79 @@
+name: TownyCapture
+version: '1.0.3'
+main: com.logichh.townycapture.TownyCapture
+api-version: '1.20'
+depend: [Towny]
+softdepend: [Dynmap, WorldGuard, PlaceholderAPI, Dynmap-Towny]
+authors: [LogicHH]
+description: A plugin that adds capturable points for towns in Towny
+
+commands:
+  capturepoint:
+    description: Main command for CapturePoints
+    usage: /capturepoint [subcommand]
+    aliases: [cp]
+
+permissions:
+  capturepoints.use:
+    description: Allows using basic CapturePoints commands (list, info, capture)
+    default: true
+
+  capturepoints.admin:
+    description: Allows using all admin CapturePoints commands
+    default: op
+    children:
+      capturepoints.use: true
+      capturepoints.admin.create: true
+      capturepoints.admin.delete: true
+      capturepoints.admin.reload: true
+      capturepoints.admin.stop: true
+      capturepoints.admin.forcecapture: true
+      capturepoints.admin.reset: true
+      capturepoints.admin.settype: true
+      capturepoints.admin.setitempayout: true
+      capturepoints.admin.timewindow: true
+      capturepoints.admin.togglechat: true
+
+  capturepoints.admin.create:
+    description: Allows creating capture points
+    default: op
+
+  capturepoints.admin.delete:
+    description: Allows deleting capture points
+    default: op
+
+  capturepoints.admin.reload:
+    description: Allows reloading the plugin configuration
+    default: op
+
+  capturepoints.protectchunk:
+    description: Allows protecting individual chunks
+    default: op
+
+  capturepoints.admin.stop:
+    description: Allows stopping active captures
+    default: op
+
+  capturepoints.admin.forcecapture:
+    description: Allows forcing a town to capture a point
+    default: op
+
+  capturepoints.admin.reset:
+    description: Allows resetting a point to unclaimed state
+    default: op
+
+  capturepoints.admin.settype:
+    description: Allows setting a point's type
+    default: op
+
+  capturepoints.admin.setitempayout:
+    description: Allows setting a point's item payout
+    default: op
+
+  capturepoints.admin.timewindow:
+    description: Allows managing time windows for capture points
+    default: op
+
+  capturepoints.admin.togglechat:
+    description: Allows toggling capture chat messages
+    default: op
