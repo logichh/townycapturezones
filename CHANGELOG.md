@@ -32,7 +32,6 @@
 
 **Language Support:**
 - **English (en)**: Complete native translations
-- **Italian (it)**: Complete professional translations
 - **Extensible**: Add any language by creating `{lang}.json` file in `/lang/` folder
 
 **Configuration:**
