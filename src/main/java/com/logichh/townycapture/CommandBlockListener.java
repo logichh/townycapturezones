@@ -12,6 +12,7 @@ package com.logichh.townycapture;
 import com.logichh.townycapture.CapturePoint;
 import com.logichh.townycapture.TownyCapture;
 import java.util.List;
+import java.util.Map;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -41,12 +42,12 @@ implements Listener {
                 if (!message.startsWith(blockedCommand.toLowerCase())) continue;
                 event.setCancelled(true);
                 String zone = isInCaptureZone ? "capture zone" : "buffer zone";
-                player.sendMessage(this.plugin.colorize("&c\u26a0 That command is blocked in the " + zone + "!"));
+                player.sendMessage(Messages.get("messages.command-blocked", Map.of("zone", zone)));
                 return;
             }
             if (!isInBufferZone || !message.startsWith("/t new") && !message.startsWith("/t claim") && !message.startsWith("/town new") && !message.startsWith("/town claim")) continue;
             event.setCancelled(true);
-            player.sendMessage(this.plugin.colorize("&c\u26a0 You cannot claim land or create towns near a capture zone!"));
+            player.sendMessage(Messages.get("messages.claiming-blocked"));
             return;
         }
     }

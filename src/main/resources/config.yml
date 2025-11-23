@@ -20,7 +20,7 @@ settings:
   
   # Minimum number of players online to allow capturing
   # This helps prevent captures when the server is empty
-  min-online-players: 3
+  min-online-players: 1
   
   # Session timeout in milliseconds (default: 1 hour)
   # How long a capture session can be inactive before being cancelled
@@ -45,6 +45,13 @@ settings:
   # Maximum number of active captures allowed
   # Set to 0 for unlimited captures
   max-active-captures: 10
+  
+  # Active language for messages (default: "en")
+  # Supports both short codes ("en", "fr") and full locales ("en_US", "fr_FR")
+  # Falls back to "en" if selected language is not available
+  # To change language: Create a file like "de.json", "fr.json", "es.json", "it.json", or "zh_CN.json" in /lang/ folder,
+  # copy the contents of en.json, translate the values, and set language to match the filename (without .json)
+  language: "en"
 
 # Capture Mechanics
 # ==============================================

@@ -87,7 +87,9 @@ public class ReinforcementListener implements Listener {
             // Notify the killer if it's a player
             Player killer = event.getEntity().getKiller();
             if (killer != null) {
-                killer.sendMessage(plugin.colorize("&a-" + secondsReduced + " seconds! &7Capture timer reduced!"));
+                killer.sendMessage(Messages.get("messages.reinforcement.timer-reduced", Map.of(
+                    "seconds", String.valueOf(secondsReduced)
+                )));
             }
             
             // Check if we need to spawn a phase due to timer change
@@ -167,7 +169,10 @@ public class ReinforcementListener implements Listener {
         }
 
         // Send message to capturing players only
-        String phaseMessage = plugin.colorize("&c&lReinforcement Phase " + phase + "! &7" + actualMobs + " defenders have arrived!");
+        String phaseMessage = Messages.get("messages.reinforcement.phase", Map.of(
+            "phase", String.valueOf(phase),
+            "count", String.valueOf(actualMobs)
+        ));
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             com.palmergames.bukkit.towny.object.Town playerTown = townyAPI.getTown(player);
             if (playerTown != null && playerTown.getName().equals(capturingTown) && 

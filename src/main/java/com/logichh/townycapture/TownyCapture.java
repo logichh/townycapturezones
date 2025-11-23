@@ -127,6 +127,9 @@ extends JavaPlugin {
         // Save default config if it doesn't exist
         saveDefaultConfig();
         
+        // Initialize messages system
+        Messages.init(this);
+        
         // Load config
         this.config = getConfig();
         
@@ -736,67 +739,70 @@ extends JavaPlugin {
     }
 
     public void listCapturePoints(Player player) {
-        String messageListHeader = this.getConfig().getString("messages.list.header", "&6===== Capture Points =====");
-        player.sendMessage(this.colorize(messageListHeader));
+        player.sendMessage(Messages.get("messages.list.header"));
         if (this.capturePoints.isEmpty()) {
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.list.empty", "&cNo capture points found!")));
+            player.sendMessage(Messages.get("messages.list.empty"));
             return;
         }
         for (CapturePoint point : this.capturePoints.values()) {
-            String status = point.getControllingTown().isEmpty() ? this.colorize(this.getConfig().getString("messages.list.unclaimed", "&7Unclaimed")) : this.colorize(this.getConfig().getString("messages.list.controlled", "&aControlled by " + point.getControllingTown()));
-            player.sendMessage(this.colorize("&e" + point.getId() + " &7- &f" + point.getName() + " &7- " + status));
+            String status = point.getControllingTown().isEmpty() ? 
+                Messages.get("messages.list.unclaimed") : 
+                Messages.get("messages.list.controlled", Map.of("town", point.getControllingTown()));
+            player.sendMessage(Messages.get("messages.list.format", Map.of(
+                "id", point.getId(),
+                "name", point.getName(),
+                "status", status)));
         }
     }
 
     public void showCapturePointInfo(Player player, String id) {
         if (!this.capturePoints.containsKey(id)) {
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.not-found", "&cCapture point not found!")));
+            player.sendMessage(Messages.get("messages.info.not-found"));
             return;
         }
         CapturePoint point = this.capturePoints.get(id);
-        String messageInfoHeader = this.getConfig().getString("messages.info.header", "&6===== " + point.getName() + " =====");
-        String messageInfoId = this.getConfig().getString("messages.info.id", "&eID: &f" + point.getId());
-        String messageInfoLocation = this.getConfig().getString("messages.info.location", "&eLocation: &f" + point.getLocation().getWorld().getName() + ", " + Math.round(point.getLocation().getX()) + ", " + Math.round(point.getLocation().getY()) + ", " + Math.round(point.getLocation().getZ()));
-        String messageInfoRadius = this.getConfig().getString("messages.info.radius", "&eRadius: &f" + point.getChunkRadius() + " chunks");
-        String messageInfoReward = this.getConfig().getString("messages.info.reward", "&eReward: &f" + point.getReward() + " money");
-        String messageInfoType = this.getConfig().getString("messages.info.type", "&eType: &f" + this.getPointTypeName(point.getType()));
-        player.sendMessage(this.colorize(messageInfoHeader));
-        player.sendMessage(this.colorize(messageInfoId));
-        player.sendMessage(this.colorize(messageInfoLocation));
-        player.sendMessage(this.colorize(messageInfoRadius));
-        player.sendMessage(this.colorize(messageInfoReward));
-        player.sendMessage(this.colorize(messageInfoType));
+        player.sendMessage(Messages.get("messages.info.header", Map.of("point", point.getName())));
+        player.sendMessage(Messages.get("messages.info.id", Map.of("id", point.getId())));
+        player.sendMessage(Messages.get("messages.info.location", Map.of(
+            "world", point.getLocation().getWorld().getName(),
+            "x", String.valueOf(Math.round(point.getLocation().getX())),
+            "y", String.valueOf(Math.round(point.getLocation().getY())),
+            "z", String.valueOf(Math.round(point.getLocation().getZ())))));
+        player.sendMessage(Messages.get("messages.info.radius", Map.of("radius", String.valueOf(point.getChunkRadius()))));
+        player.sendMessage(Messages.get("messages.info.reward", Map.of("reward", String.valueOf(point.getReward()))));
+        player.sendMessage(Messages.get("messages.info.type", Map.of("type", this.getPointTypeName(point.getType()))));
         if (point.getControllingTown().isEmpty()) {
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.status-unclaimed", "&eStatus: &7Unclaimed")));
+            player.sendMessage(Messages.get("messages.info.status-unclaimed"));
         } else {
-            String messageInfoStatusControlled = this.getConfig().getString("messages.info.status-controlled", "&eStatus: &aControlled by " + point.getControllingTown());
-            player.sendMessage(this.colorize(messageInfoStatusControlled));
+            player.sendMessage(Messages.get("messages.info.status-controlled", Map.of("town", point.getControllingTown())));
         }
         if (this.activeSessions.containsKey(id)) {
             CaptureSession session = this.activeSessions.get(id);
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.capturing-town", "&eBeing captured by: &c" + session.getTownName())));
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.capturing-time", "&eTime remaining: &c" + this.formatTime(session.getRemainingTime()))));
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.capturing-phase", "&ePhase: &c" + (session.isInPreparationPhase() ? "Preparation" : "Capture"))));
+            player.sendMessage(Messages.get("messages.info.capturing-town", Map.of("town", session.getTownName())));
+            player.sendMessage(Messages.get("messages.info.capturing-time", Map.of("time", this.formatTime(session.getRemainingTime()))));
+            player.sendMessage(Messages.get("messages.info.capturing-phase", Map.of("phase", (session.isInPreparationPhase() ? "Preparation" : "Capture"))));
         }
         if (this.isDynmapEnabled()) {
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.dynmap", "&eDynmap: &aVisible on map")));
+            player.sendMessage(Messages.get("messages.info.dynmap"));
         }
         if (this.isWorldGuardEnabled()) {
-            player.sendMessage(this.colorize(this.getConfig().getString("messages.info.worldguard", "&eProtection: &aActive (WorldGuard)")));
+            player.sendMessage(Messages.get("messages.info.worldguard"));
         }
     }
 
     public void listPointTypes(Player player) {
-        String header = this.getConfig().getString("messages.types.header", "&6===== Point Types =====");
-        player.sendMessage(this.colorize(header));
+        player.sendMessage(Messages.get("messages.types.header"));
         for (Map.Entry<String, String> entry : this.pointTypes.entrySet()) {
-            player.sendMessage(this.colorize("&e" + entry.getKey() + " &7- &f" + entry.getValue()));
+            player.sendMessage(Messages.get("messages.types.format", 
+                "type", entry.getKey(),
+                "description", entry.getValue()));
         }
     }
 
     public void reloadAll() {
         this.reloadConfig();
         this.config = this.getConfig();
+        Messages.reload();
         this.capturePointsConfig = YamlConfiguration.loadConfiguration((File)this.capturePointsFile);
         this.capturePoints.clear();
         this.loadCapturePoints();
@@ -804,6 +810,10 @@ extends JavaPlugin {
         if (this.dynmapEnabled) {
             this.updateAllMarkers();
         }
+    }
+
+    public void reloadLang() {
+        Messages.reload();
     }
 
     public void saveCapturePoints() {
@@ -954,29 +964,28 @@ extends JavaPlugin {
     public boolean startCapture(Player player, String pointId) {
         CapturePoint point = capturePoints.get(pointId);
         if (point == null) {
-            player.sendMessage(ChatColor.RED + "Capture point not found!");
+            player.sendMessage(Messages.get("messages.capture.point-not-found"));
             return false;
         }
 
         // Check minimum online players
         int minOnlinePlayers = config.getInt("settings.min-online-players", 5);
         if (Bukkit.getOnlinePlayers().size() < minOnlinePlayers) {
-            String message = config.getString("messages.errors.not-enough-players", "&cAt least %minplayers% players must be online to start a capture!")
-                .replace("%minplayers%", String.valueOf(minOnlinePlayers));
-            player.sendMessage(colorize(message));
+            String message = Messages.get("errors.not-enough-players", Map.of("minplayers", String.valueOf(minOnlinePlayers)));
+            player.sendMessage(message);
             return false;
         }
 
         // Check if player is in a town
         Town town = TownyAPI.getInstance().getTown(player);
         if (town == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a town to capture points!");
+            player.sendMessage(Messages.get("messages.capture.not-in-town"));
             return false;
         }
 
         // Check if player is within chunk radius
         if (!isWithinChunkRadius(player.getLocation(), point.getLocation(), point.getChunkRadius())) {
-            player.sendMessage(ChatColor.RED + "You must be within the capture point's chunk radius!");
+            player.sendMessage(Messages.get("messages.capture.not-in-radius"));
             return false;
         }
 
@@ -992,10 +1001,11 @@ extends JavaPlugin {
                     !disabledNotifications.getOrDefault(player.getUniqueId(), false)) {
                     bossBar.addPlayer(player);
                 }
-                player.sendMessage(colorize("&aYou have joined your town's capture of " + point.getName() + "!"));
+                player.sendMessage(Messages.get("messages.capture.joined-own", Map.of("point", point.getName())));
                 return true;
             }
             player.sendMessage(ChatColor.RED + "This capture point is already being captured!");
+            player.sendMessage(Messages.get("messages.capture.already-capturing"));
             return false;
         }
 
@@ -1013,7 +1023,7 @@ extends JavaPlugin {
 
         // Create boss bar
         BossBar bossBar = Bukkit.createBossBar(
-            colorize("&ePreparing to capture: " + point.getName()),
+            Messages.get("bossbar.preparing", Map.of("zone", point.getName())),
             BarColor.BLUE,
             BarStyle.SOLID
         );
@@ -1036,9 +1046,10 @@ extends JavaPlugin {
         }
 
         // Broadcast preparation message
-        String prepMessage = config.getString("messages.capture.started", "&a%town% has started capturing %point%!")
-            .replace("%town%", town.getName())
-            .replace("%point%", point.getName());
+        String prepMessage = Messages.get("messages.capture.started", Map.of(
+            "town", town.getName(),
+            "point", point.getName()
+        ));
         broadcastMessage(prepMessage);
         
         // Play capture started sound
@@ -1062,10 +1073,11 @@ extends JavaPlugin {
 
             if (showCountdown) {
                 // Update boss bar with preparation time
-                String title = config.getString("bossbar.preparation", "&ePreparing to capture: %point% - %time%")
-                    .replace("%point%", point.getName())
-                    .replace("%time%", formatTime(timeLeft));
-                bossBar.setTitle(colorize(title));
+                String title = Messages.get("bossbar.preparation-timer", Map.of(
+                    "zone", point.getName(),
+                    "time", formatTime(timeLeft)
+                ));
+                bossBar.setTitle(title);
                 bossBar.setProgress(Math.max(0.0, (double)timeLeft / session.getInitialPreparationTime()));
             }
         }, 20L, 20L);
@@ -1096,11 +1108,12 @@ extends JavaPlugin {
         // Update boss bar
         BossBar bossBar = captureBossBars.get(pointId);
         if (bossBar != null) {
-            String title = config.getString("bossbar.capture", "&c%town% is capturing %point% - %time%")
-                .replace("%town%", town.getName())
-                .replace("%point%", point.getName())
-                .replace("%time%", formatTime(session.getRemainingCaptureTime()));
-            bossBar.setTitle(colorize(title));
+            String title = Messages.get("bossbar.capturing", Map.of(
+                "town", town.getName(),
+                "zone", point.getName(),
+                "time", formatTime(session.getRemainingCaptureTime())
+            ));
+            bossBar.setTitle(title);
             bossBar.setColor(BarColor.RED);
             
             // Show capture phase boss bar to all players
@@ -1114,9 +1127,10 @@ extends JavaPlugin {
         }
 
         // Broadcast capture phase start message only once
-        String phaseMessage = config.getString("messages.capture.phase_started", "&c%town% has entered the capture phase for %point%!")
-            .replace("%town%", town.getName())
-            .replace("%point%", point.getName());
+        String phaseMessage = Messages.get("messages.capture.phase-started", Map.of(
+            "town", town.getName(),
+            "zone", point.getName()
+        ));
         broadcastMessage(phaseMessage);
         
         // Play phase started sound
@@ -1143,11 +1157,12 @@ extends JavaPlugin {
 
             // Update boss bar
             if (bossBar != null) {
-                String title = config.getString("bossbar.capture", "&c%town% is capturing %point% - %time%")
-                    .replace("%town%", town.getName())
-                    .replace("%point%", point.getName())
-                    .replace("%time%", formatTime(timeLeft));
-                bossBar.setTitle(colorize(title));
+                String title = Messages.get("bossbar.capturing", Map.of(
+                    "town", town.getName(),
+                    "zone", point.getName(),
+                    "time", formatTime(timeLeft)
+                ));
+                bossBar.setTitle(title);
                 bossBar.setProgress(Math.max(0.0, (double)timeLeft / session.getInitialCaptureTime()));
             }
         }, 20L, 20L);
@@ -1183,13 +1198,14 @@ extends JavaPlugin {
         point.setColor(townColor);
         
         // Broadcast capture completion message only once
-        String completeMessage = config.getString("messages.capture.complete", "&a%town% has captured %point%!")
-            .replace("%town%", capturingTown)
-            .replace("%point%", point.getName());
+        String completeMessage = Messages.get("messages.capture.complete", Map.of(
+            "town", capturingTown,
+            "zone", point.getName()
+        ));
         broadcastMessage(completeMessage);
         
         // Send personal message to capturing players
-        String personalMessage = colorize("&a&lCongratulations! &7You have successfully captured &e" + point.getName() + "&7!");
+        String personalMessage = Messages.get("messages.capture.congratulations", Map.of("zone", point.getName()));
         for (Player player : Bukkit.getOnlinePlayers()) {
             try {
                 Town playerTown = TownyAPI.getInstance().getTown(player);
@@ -1268,9 +1284,13 @@ extends JavaPlugin {
             task.cancel();
         }
         this.activeSessions.remove(pointId);
-        String message = this.config.getString("messages.capture.death_broadcast", "&c%town%'s capture of %point% has been cancelled! %victim% was defeated by %killer%!");
-        message = message.replace("%town%", session.getTownName()).replace("%point%", point.getName()).replace("%victim%", victimName).replace("%killer%", killerName);
-        Bukkit.broadcastMessage((String)this.colorize(message));
+        String message = Messages.get("messages.capture.death_broadcast", Map.of(
+            "town", session.getTownName(),
+            "zone", point.getName(),
+            "victim", victimName,
+            "killer", killerName
+        ));
+        Bukkit.broadcastMessage(message);
         if (this.dynmapEnabled) {
             this.townUpdater.updateMarker(point);
         }
@@ -1291,12 +1311,14 @@ extends JavaPlugin {
         this.removeBeacon(point);
         this.removeCaptureBossBar(pointId);
         this.activeSessions.remove(pointId);
-        Object message = this.config.getString("messages.capture.admin_cancelled", "\u00a7c%town%'s capture of %point% has been cancelled by an admin!");
-        message = ((String)message).replace("%town%", session.getTownName()).replace("%point%", point.getName());
+        String message = Messages.get("messages.capture.admin_cancelled", Map.of(
+            "town", session.getTownName(),
+            "zone", point.getName()
+        ));
         if (reason != null && !reason.isEmpty()) {
-            message = (String)message + " Reason: " + reason;
+            message = message + " Reason: " + reason;
         }
-        Bukkit.broadcastMessage((String)this.colorize((String)message));
+        Bukkit.broadcastMessage(message);
         if (this.dynmapEnabled) {
             this.townUpdater.updateMarker(point);
         }
@@ -1347,9 +1369,11 @@ extends JavaPlugin {
         saveCapturePoints();
         
         // Broadcast the capture
-        String message = this.config.getString("messages.capture.complete", "\u00a7a%town% has captured %point%!");
-        message = message.replace("%town%", town.getName()).replace("%point%", point.getName());
-        Bukkit.broadcastMessage(this.colorize(message));
+        String message = Messages.get("messages.capture.complete", Map.of(
+            "town", town.getName(),
+            "zone", point.getName()
+        ));
+        Bukkit.broadcastMessage(message);
         
         return true;
     }
@@ -1382,8 +1406,7 @@ extends JavaPlugin {
         saveCapturePoints();
 
         // Broadcast reset message
-        String message = config.getString("messages.capture.reset", "&cCapture point %point% has been reset!")
-            .replace("%point%", point.getName());
+        String message = Messages.get("messages.capture.reset", Map.of("zone", point.getName()));
         broadcastMessage(message);
 
         return true;
@@ -1419,8 +1442,7 @@ extends JavaPlugin {
         saveCapturePoints();
 
         // Broadcast reset message
-        String message = config.getString("messages.capture.reset_all", "&cAll capture points have been reset!")
-            .replace("%count%", String.valueOf(count));
+        String message = Messages.get("messages.reset-all", Map.of("count", String.valueOf(count)));
         broadcastMessage(message);
 
         return count;
@@ -1588,9 +1610,12 @@ extends JavaPlugin {
             try {
                 town.getAccount().deposit(point.getReward(), "Reward for controlling " + point.getName());
                 this.getLogger().info("Gave " + point.getReward() + " to " + town.getName() + " for controlling " + point.getName());
-                String message = this.config.getString("messages.reward.distributed", "\u00a7a%town% has received %reward% for controlling %point%!");
-                message = message.replace("%town%", town.getName()).replace("%reward%", String.valueOf(point.getReward())).replace("%point%", point.getName());
-                Bukkit.broadcastMessage((String)this.colorize(message));
+                String message = Messages.get("messages.reward.distributed", Map.of(
+                    "town", town.getName(),
+                    "reward", String.valueOf(point.getReward()),
+                    "zone", point.getName()
+                ));
+                Bukkit.broadcastMessage(message);
             }
             catch (Exception e) {
                 this.getLogger().warning("Failed to give reward to " + town.getName());
@@ -1625,9 +1650,12 @@ extends JavaPlugin {
                 this.getLogger().info("Depositing " + hourlyReward + " to town " + town.getName());
                 town.getAccount().deposit(hourlyReward, "Hourly reward for controlling " + point.getName());
                 this.getLogger().info("Gave " + hourlyReward + " to " + town.getName() + " for controlling " + point.getName() + " (hourly)");
-                String message = this.config.getString("messages.reward.hourly_distributed", "\u00a7a%town% has received %reward% hourly reward for controlling %point%!");
-                message = message.replace("%town%", town.getName()).replace("%reward%", String.format("%.1f", hourlyReward)).replace("%point%", point.getName());
-                Bukkit.broadcastMessage((String)this.colorize(message));
+                String message = Messages.get("messages.reward.hourly_distributed", Map.of(
+                    "town", town.getName(),
+                    "reward", String.format("%.1f", hourlyReward),
+                    "zone", point.getName()
+                ));
+                Bukkit.broadcastMessage(message);
             }
             catch (Exception e) {
                 this.getLogger().warning("Failed to give hourly reward to " + town.getName() + ": " + e.getMessage());
@@ -1775,12 +1803,20 @@ extends JavaPlugin {
         }
         // Reset capturing town
         point.setCapturingTown(null);
-        Object message = this.config.getString("messages.capture.cancelled", "\u00a7c%town%'s capture of %point% has been cancelled!");
-        message = ((String)message).replace("%town%", session.getTownName()).replace("%point%", point.getName());
+        String message;
         if (reason != null && !reason.isEmpty()) {
-            message = (String)message + " Reason: " + reason;
+            message = Messages.get("messages.capture.broadcast-cancelled-reason", Map.of(
+                "town", session.getTownName(),
+                "zone", point.getName(),
+                "reason", getLocalizedReason(reason)
+            ));
+        } else {
+            message = Messages.get("messages.capture.broadcast-cancelled", Map.of(
+                "town", session.getTownName(),
+                "zone", point.getName()
+            ));
         }
-        Bukkit.broadcastMessage((String)this.colorize((String)message));
+        Bukkit.broadcastMessage(message);
         if (this.dynmapEnabled) {
             this.townUpdater.updateMarker(point);
         }
@@ -2052,5 +2088,18 @@ extends JavaPlugin {
 
         captureTasks.put(pointId, prepTask);
         return true;
+    }
+
+    private String getLocalizedReason(String reason) {
+        switch (reason) {
+            case "Player moved too far from capture zone":
+                return Messages.get("reasons.moved-too-far");
+            case "All participants disconnected":
+                return Messages.get("reasons.all-disconnected");
+            case "Session timeout":
+                return Messages.get("reasons.session-timeout");
+            default:
+                return reason; // Return original reason if not recognized
+        }
     }
 }

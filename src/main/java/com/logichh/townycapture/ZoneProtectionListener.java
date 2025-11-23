@@ -52,8 +52,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getBlock().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.block-break-blocked", "&cYou cannot break blocks in protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.block-break-blocked"));
         }
     }
 
@@ -70,8 +69,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getBlock().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.block-place-blocked", "&cYou cannot place blocks in protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.block-place-blocked"));
         }
     }
 
@@ -101,8 +99,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getEntity().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.pvp-blocked", "&cPvP is blocked in protected zones!");
-            ((Player)event.getDamager()).sendMessage(this.plugin.colorize(message));
+            ((Player)event.getDamager()).sendMessage(Messages.get("protection.pvp-blocked"));
         }
     }
 
@@ -119,8 +116,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.item-use-blocked", "&cYou cannot use items in protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.item-use-blocked"));
         }
     }
 
@@ -137,8 +133,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getTo())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.teleport-blocked", "&cYou cannot teleport into protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.teleport-blocked"));
         }
     }
 
@@ -153,13 +148,11 @@ implements Listener {
         String command = event.getMessage().toLowerCase();
         if (this.plugin.getConfig().getBoolean("protection.prevent-homes", true) && (command.startsWith("/home") || command.startsWith("/homes") || command.startsWith("/sethome") || command.startsWith("/delhome")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.home-blocked", "&cHome commands are blocked in protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.home-blocked"));
         }
         if (this.plugin.getConfig().getBoolean("protection.prevent-claiming", true) && (command.startsWith("/t claim") || command.startsWith("/town claim") || command.startsWith("/n claim") || command.startsWith("/nation claim")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            String message = this.plugin.getConfig().getString("protection.messages.claiming-blocked", "&cClaiming is blocked in protected zones!");
-            event.getPlayer().sendMessage(this.plugin.colorize(message));
+            event.getPlayer().sendMessage(Messages.get("protection.claiming-blocked"));
         }
     }
 

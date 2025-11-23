@@ -82,17 +82,13 @@ implements Listener {
             // Buffer zone messages
             if (!wasInBuffer && isInBuffer) {
                 enteredBuffer = true;
-                String enterMessage = "&e\u26a0 You are approaching capture zone: &6%zone%";
-                enterMessage = enterMessage.replace("%zone%", point.getName());
-                player.sendMessage(this.plugin.colorize(enterMessage));
+                player.sendMessage(Messages.get("messages.zone.approaching", Map.of("zone", point.getName())));
             }
 
             // Capture zone messages
             if (!wasInZone && isInZone) {
                 enteredZone = point;
-                String enterZoneMessage = "&c\u2694 &lYOU HAVE ENTERED CAPTURE ZONE: &6%zone% &c\u2694";
-                enterZoneMessage = enterZoneMessage.replace("%zone%", point.getName());
-                player.sendMessage(this.plugin.colorize(enterZoneMessage));
+                player.sendMessage(Messages.get("messages.zone.entered", Map.of("zone", point.getName())));
                 this.startContinuousActionBar(player, point);
                 continue;
             }
@@ -100,9 +96,7 @@ implements Listener {
             // Left zone message
             if (wasInZone && !isInZone) {
                 leftZone = point;
-                String leaveZoneMessage = "&c\u2694 &lYOU HAVE LEFT CAPTURE ZONE: &6%zone% &c\u2694";
-                leaveZoneMessage = leaveZoneMessage.replace("%zone%", point.getName());
-                player.sendMessage(this.plugin.colorize(leaveZoneMessage));
+                player.sendMessage(Messages.get("messages.zone.left", Map.of("zone", point.getName())));
                 this.stopContinuousActionBar(player);
             }
         }
@@ -120,8 +114,7 @@ implements Listener {
 
             if (currentBlockDistance * 16 > blockRadius) {
                 this.plugin.cancelCapture(session.getPointId(), "Player moved too far from capture zone");
-                String movedTooFar = this.plugin.getConfig().getString("messages.errors.moved-too-far", "&cCapture cancelled! You moved too far from the capture point.");
-                player.sendMessage(this.plugin.colorize(movedTooFar));
+                player.sendMessage(Messages.get("errors.moved-too-far"));
                 return;
             }
         }
@@ -186,11 +179,9 @@ implements Listener {
             }
             CaptureSession session = this.plugin.getActiveSessions().get(zone.getId());
             if (session != null) {
-                message = this.plugin.getConfig().getString("messages.zone.continuous-capturing", "&c\u2694 &c&l%town% IS CAPTURING %zone% &c\u2694");
-                message = message.replace("%town%", session.getTownName()).replace("%zone%", zone.getName());
+                message = Messages.get("messages.zone.continuous-capturing", Map.of("town", session.getTownName(), "zone", zone.getName()));
             } else {
-                message = this.plugin.getConfig().getString("messages.zone.continuous", "&c\u26a0 &c&lYOU ARE IN CAPTURE ZONE %zone% &c\u26a0");
-                message = message.replace("%zone%", zone.getName());
+                message = Messages.get("messages.zone.continuous", Map.of("zone", zone.getName()));
             }
             this.sendActionBarMessage(player, message);
         }, 0L, 20L);

@@ -17,6 +17,7 @@
 package com.logichh.townycapture;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.object.Town;
@@ -56,7 +57,7 @@ public class CaptureCommands implements CommandExecutor {
                 return true;
             case "admin":
                 if (!sender.hasPermission("capturepoints.admin")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 sendAdminHelp(sender);
@@ -65,149 +66,149 @@ public class CaptureCommands implements CommandExecutor {
                 if (player != null) {
                     sendCapturePointList(player);
                 } else {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                 }
                 return true;
             case "info":
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
-                return true;
-            }
+                    sender.sendMessage(Messages.get("errors.player-only"));
+                    return true;
+                }
                 if (args.length < 2) {
-                    player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-info", "&cUsage: /capturepoint info <point>")));
+                    player.sendMessage(Messages.get("errors.usage-info"));
                     return true;
                 }
                 showPointInfo(player, args[1]);
                 return true;
             case "capture":
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
-                return true;
-            }
+                    sender.sendMessage(Messages.get("errors.player-only"));
+                    return true;
+                }
                 startCapture(player);
                 return true;
             case "notifications":
             case "silence":
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
-                return true;
-            }
+                    sender.sendMessage(Messages.get("errors.player-only"));
+                    return true;
+                }
                 boolean currentlyDisabled = plugin.disabledNotifications.getOrDefault(player.getUniqueId(), false);
                 plugin.disabledNotifications.put(player.getUniqueId(), !currentlyDisabled);
                 
                 if (!currentlyDisabled) {
                     // Turn off all notifications
                     plugin.hideBossBarForPlayer(player);
-                    player.sendMessage(plugin.colorize("&7All TownyCapture notifications disabled."));
+                    player.sendMessage(Messages.get("messages.notifications-disabled"));
                 } else {
                     // Turn on all notifications
                 plugin.showBossBarForPlayer(player);
-                    player.sendMessage(plugin.colorize("&aAll TownyCapture notifications enabled."));
+                    player.sendMessage(Messages.get("messages.notifications-enabled"));
                 }
                 return true;
             case "create":
                 if (!sender.hasPermission("capturepoints.admin.create")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
-                return true;
-            }
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return true;
+                }
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                     return true;
                 }
                 if (args.length < 5) {
-                    player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-create", "&cUsage: /capturepoint create <id> <type> <radius> <reward>")));
+                    player.sendMessage(Messages.get("errors.usage-create"));
                     return true;
                 }
                 handleCreateCommand(player, args);
                 return true;
             case "stop":
                 if (!sender.hasPermission("capturepoints.admin.stop")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-stop", "&cUsage: /capturepoint stop <point>")));
+                    sender.sendMessage(Messages.get("errors.usage-stop"));
                     return true;
                 }
                 handleStopCommand(sender, args);
                 return true;
             case "deletezone":
                 if (!sender.hasPermission("capturepoints.admin.delete")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-deletezone", "&cUsage: /capturepoint deletezone <point>")));
+                    sender.sendMessage(Messages.get("errors.usage-deletezone"));
                     return true;
                 }
                 deleteZone(sender, args[1]);
                 return true;
             case "protectchunk":
                 if (!sender.hasPermission("capturepoints.protectchunk")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
-                return true;
-            }
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return true;
+                }
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                     return true;
                 }
                 protectCurrentChunk(player);
                 return true;
             case "settype":
                 if (!sender.hasPermission("capturepoints.admin.settype")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-settype", "&cUsage: /capturepoint settype <point> <type>")));
+                    sender.sendMessage(Messages.get("errors.usage-settype"));
                     return true;
                 }
                 handleSetType(sender, args[1], args[2]);
                 return true;
             case "types":
                 if (!sender.hasPermission("capturepoints.admin.settype")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 showPointTypes(sender);
                 return true;
             case "forcecapture":
                 if (!sender.hasPermission("capturepoints.admin.forcecapture")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-forcecapture", "&cUsage: /capturepoint forcecapture <point> <town>")));
+                    sender.sendMessage(Messages.get("errors.usage-forcecapture"));
                     return true;
                 }
                 handleForceCapture(sender, args[1], args[2]);
                 return true;
             case "reset":
                 if (!sender.hasPermission("capturepoints.admin.reset")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.usage-reset", "&cUsage: /capturepoint reset <point>")));
+                    sender.sendMessage(Messages.get("errors.usage-reset"));
                     return true;
                 }
                 handleReset(sender, args[1]);
                 return true;
             case "resetall":
                 if (!sender.hasPermission("capturepoints.admin.reset")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 handleResetAll(sender);
                 return true;
             case "showzone":
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                     return true;
                 }
                 if (args.length < 2) {
-                    player.sendMessage(plugin.colorize("&cUsage: /capturepoint showzone <point|all>"));
-                    player.sendMessage(plugin.colorize("&7Use 'all' to toggle all zone boundaries"));
+                    player.sendMessage(Messages.get("errors.usage-showzone"));
+                    player.sendMessage(Messages.get("messages.zone.toggle-hint"));
                     return true;
                 }
                 if (args[1].equalsIgnoreCase("all")) {
@@ -218,44 +219,52 @@ public class CaptureCommands implements CommandExecutor {
                 return true;
             case "reload":
                 if (!sender.hasPermission("capturepoints.admin.reload")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
-                plugin.reloadConfig();
-                sender.sendMessage(plugin.colorize("&aConfiguration reloaded!"));
+                plugin.reloadAll();
+                sender.sendMessage(Messages.get("messages.reload-success"));
+                return true;
+            case "reloadlang":
+                if (!sender.hasPermission("capturepoints.admin.reload")) {
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return true;
+                }
+                plugin.reloadLang();
+                sender.sendMessage(Messages.get("messages.reloadlang-success"));
                 return true;
             case "togglechat":
                 if (!sender.hasPermission("capturepoints.admin.togglechat")) {
-                    sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.no-permission", "&cYou don't have permission to use this command!")));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage(plugin.colorize("&cUsage: /capturepoint togglechat <on/off>"));
+                    sender.sendMessage(Messages.get("errors.usage-togglechat"));
                     return true;
                 }
                 boolean enable = args[1].equalsIgnoreCase("on");
                 plugin.toggleChatMessages(enable);
                 String status = enable ? "enabled" : "disabled";
-                sender.sendMessage(plugin.colorize("&aCapture chat messages have been " + status));
+                sender.sendMessage(Messages.get("messages.chat-status", Map.of("status", status)));
                 return true;
             case "test":
                 if (!sender.hasPermission("capturepoints.admin")) {
-                    sender.sendMessage(plugin.colorize("&cYou don't have permission to use this command!"));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                     return true;
                 }
                 runTests(player);
                 return true;
             case "testall":
                 if (!sender.hasPermission("capturepoints.admin")) {
-                    sender.sendMessage(plugin.colorize("&cYou don't have permission to use this command!"));
+                    sender.sendMessage(Messages.get("errors.no-permission"));
                     return true;
                 }
                 if (player == null) {
-                    sender.sendMessage(plugin.colorize("&cThis command can only be used by players!"));
+                    sender.sendMessage(Messages.get("errors.player-only"));
                     return true;
                 }
                 runAllTests(player);
@@ -270,130 +279,136 @@ public class CaptureCommands implements CommandExecutor {
         String pointId = args[1];
         String reason = args.length > 2 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : "No reason provided";
         if (plugin.stopCapture(pointId, reason)) {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.admin.capture_stopped", "&aCapture stopped successfully!")));
+            sender.sendMessage(Messages.get("admin.capture-stopped"));
         } else {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.capture_not_found", "&cNo active capture found for this point!")));
+            sender.sendMessage(Messages.get("errors.capture-not-found"));
         }
     }
 
     private void deleteZone(CommandSender sender, String pointId) {
         if (plugin.deleteCapturePoint(pointId)) {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.admin.point_deleted", "&aCapture point deleted successfully!")));
+            sender.sendMessage(Messages.get("admin.point-deleted"));
         } else {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.point_not_found", "&cCapture point not found!")));
+            sender.sendMessage(Messages.get("messages.errors.point_not_found"));
         }
     }
 
     private void handleSetType(CommandSender sender, String pointId, String type) {
         if (plugin.setPointType(pointId, type)) {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.admin.type_changed", "&aPoint type changed successfully!")));
+            sender.sendMessage(Messages.get("admin.type-changed"));
         } else {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.point_not_found", "&cCapture point not found!")));
+            sender.sendMessage(Messages.get("messages.errors.point_not_found"));
         }
     }
 
     private void showPointTypes(CommandSender sender) {
         Map<String, String> types = plugin.getPointTypes();
         if (types.isEmpty()) {
-            sender.sendMessage(plugin.colorize("&cNo point types defined!"));
+            sender.sendMessage(Messages.get("errors.no-point-types"));
             return;
         }
-        sender.sendMessage(plugin.colorize("&6&l=== Available Point Types ==="));
+        sender.sendMessage(Messages.get("help.point-types-header"));
         for (Map.Entry<String, String> entry : types.entrySet()) {
-            sender.sendMessage(plugin.colorize("&e" + entry.getKey() + " &7- " + entry.getValue()));
+            sender.sendMessage(Messages.get("help.point-types-format", 
+                Map.of("type", entry.getKey(), "description", entry.getValue())));
         }
     }
 
     private void handleForceCapture(CommandSender sender, String pointId, String townName) {
         if (plugin.forceCapture(pointId, townName)) {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.admin.force_capture_success", "&aPoint force captured successfully!")));
+            sender.sendMessage(Messages.get("admin.force-capture-success"));
         } else {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.point_not_found", "&cCapture point not found!")));
+            sender.sendMessage(Messages.get("messages.errors.point_not_found"));
         }
     }
 
     private void handleReset(CommandSender sender, String pointId) {
         if (plugin.resetPoint(pointId)) {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.admin.point_reset", "&aCapture point reset successfully!")));
+            sender.sendMessage(Messages.get("admin.point-reset"));
         } else {
-            sender.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.point_not_found", "&cCapture point not found!")));
+            sender.sendMessage(Messages.get("messages.errors.point_not_found"));
         }
     }
 
     private void handleResetAll(CommandSender sender) {
         int count = plugin.resetAllPoints();
-        sender.sendMessage(plugin.colorize("&aAll capture points have been reset! " + count + " points processed."));
+        sender.sendMessage(Messages.get("messages.reset-all", Map.of("count", String.valueOf(count))));
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(plugin.colorize("&6&l=== TownyCapture Help ==="));
-        sender.sendMessage(plugin.colorize("&e/capturepoint help &7- Show this help message"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint list &7- List all capture points"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint info <point> &7- Show info about a capture point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint capture &7- Start capturing a point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint showzone <point|all> &7- Toggle zone boundary visualization"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint notifications &7- Toggle all plugin notifications (boss bars, sounds, messages)"));
+        sender.sendMessage(Messages.get("help.main.header"));
+        sender.sendMessage(Messages.get("help.main.help"));
+        sender.sendMessage(Messages.get("help.main.list"));
+        sender.sendMessage(Messages.get("help.main.info"));
+        sender.sendMessage(Messages.get("help.main.capture"));
+        sender.sendMessage(Messages.get("help.main.showzone"));
+        sender.sendMessage(Messages.get("help.main.notifications"));
         
         if (sender.hasPermission("capturepoints.admin")) {
-            sender.sendMessage(plugin.colorize("&6&l=== Admin Commands ==="));
-            sender.sendMessage(plugin.colorize("&e/capturepoint admin &7- Show admin commands"));
+            sender.sendMessage(Messages.get("help.main.admin-section"));
+            sender.sendMessage(Messages.get("help.main.admin"));
         }
     }
 
     private void sendAdminHelp(CommandSender sender) {
-        sender.sendMessage(plugin.colorize("&6&l=== TownyCapture Admin Help ==="));
-        sender.sendMessage(plugin.colorize("&e/capturepoint create <id> <type> <radius> <reward> &7- Create a new capture point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint deletezone <point> &7- Delete a capture point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint stop <point> &7- Stop an active capture"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint showzone <point|all> &7- Toggle zone boundary visualization"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint settype <point> <type> &7- Set point type"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint types &7- List available point types"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint forcecapture <point> <town> &7- Force capture a point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint reset <point> &7- Reset a capture point"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint resetall &7- Reset all capture points (keeps owners)"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint reload &7- Reload configuration"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint test &7- Create test zones for manual testing"));
-        sender.sendMessage(plugin.colorize("&e/capturepoint testall &7- Run automated comprehensive tests"));
+        sender.sendMessage(Messages.get("help.admin.header"));
+        sender.sendMessage(Messages.get("help.admin.create"));
+        sender.sendMessage(Messages.get("help.admin.deletezone"));
+        sender.sendMessage(Messages.get("help.admin.stop"));
+        sender.sendMessage(Messages.get("help.admin.showzone"));
+        sender.sendMessage(Messages.get("help.admin.settype"));
+        sender.sendMessage(Messages.get("help.admin.types"));
+        sender.sendMessage(Messages.get("help.admin.forcecapture"));
+        sender.sendMessage(Messages.get("help.admin.reset"));
+        sender.sendMessage(Messages.get("help.admin.resetall"));
+        sender.sendMessage(Messages.get("help.admin.reload"));
+        sender.sendMessage(Messages.get("help.admin.test"));
+        sender.sendMessage(Messages.get("help.admin.testall"));
     }
 
     private void sendCapturePointList(Player player) {
         Map<String, CapturePoint> points = this.plugin.getCapturePoints();
         if (points.isEmpty()) {
-            player.sendMessage(this.plugin.colorize("&c&l\u2716 &7No capture points found!"));
+            player.sendMessage(Messages.get("messages.zone.no-points"));
             return;
         }
-        player.sendMessage(this.plugin.colorize("&6&l\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac &e&lCapture Points &6&l\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac"));
+        player.sendMessage(Messages.get("messages.zone.header"));
         for (CapturePoint point : points.values()) {
-            Object status;
+            String status;
             String controllingTown = point.getControllingTown();
-            Object object = status = controllingTown.isEmpty() ? "&c&lUNCLAIMED" : "&a&lCONTROLLED &7by &f" + controllingTown;
+            if (controllingTown.isEmpty()) {
+                status = "&c&lUNCLAIMED";
+            } else {
+                status = "&a&lCONTROLLED &7by &f" + controllingTown;
+            }
             if (this.plugin.getActiveSessions().containsKey(point.getId())) {
                 CaptureSession session = this.plugin.getActiveSessions().get(point.getId());
                 status = "&6&lCAPTURING &7by &f" + session.getTownName();
             }
-            player.sendMessage(this.plugin.colorize("&e\u27a4 &f" + point.getName() + " &7- " + (String)status));
+            player.sendMessage(Messages.get("messages.zone.point-entry", 
+                Map.of("name", point.getName(), "status", status)));
         }
-        player.sendMessage(this.plugin.colorize("&6&l\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac &e&lStatistics &6&l\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac"));
-        player.sendMessage(this.plugin.colorize("&e\u27a4 &7Total Points: &f" + points.size()));
-        player.sendMessage(this.plugin.colorize("&e\u27a4 &7Active Captures: &f" + this.plugin.getActiveSessions().size()));
-        player.sendMessage(this.plugin.colorize("&6&l\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac"));
+        player.sendMessage(Messages.get("messages.zone.stats-header"));
+        player.sendMessage(Messages.get("messages.zone.total-points", Map.of("count", String.valueOf(points.size()))));
+        player.sendMessage(Messages.get("messages.zone.active-captures", Map.of("count", String.valueOf(this.plugin.getActiveSessions().size()))));
+        player.sendMessage(Messages.get("messages.zone.footer"));
     }
 
     private void showPointInfo(Player player, String pointId) {
         CapturePoint point = this.plugin.getCapturePoints().get(pointId);
         if (point == null) {
-            player.sendMessage(this.plugin.colorize("&cCapture point not found!"));
+            player.sendMessage(Messages.get("messages.info.point-not-found"));
             return;
         }
-        player.sendMessage(this.plugin.colorize("&6===== " + point.getName() + " ====="));
-        player.sendMessage(this.plugin.colorize("&eID: &7" + point.getId()));
-        player.sendMessage(this.plugin.colorize("&eType: &7" + point.getType()));
-        player.sendMessage(this.plugin.colorize("&eRadius: &7" + point.getChunkRadius() + " chunks"));
-        player.sendMessage(this.plugin.colorize("&eReward: &7" + point.getReward()));
-        player.sendMessage(this.plugin.colorize("&eControlling Town: &7" + (point.getControllingTown().isEmpty() ? "None" : point.getControllingTown())));
+        player.sendMessage(Messages.get("messages.info.point-header", Map.of("point", point.getName())));
+        player.sendMessage(Messages.get("messages.info.point-id", Map.of("id", point.getId())));
+        player.sendMessage(Messages.get("messages.info.point-type", Map.of("type", point.getType())));
+        player.sendMessage(Messages.get("messages.info.point-radius", Map.of("radius", String.valueOf(point.getChunkRadius()))));
+        player.sendMessage(Messages.get("messages.info.point-reward", Map.of("reward", String.valueOf(point.getReward()))));
+        player.sendMessage(Messages.get("messages.info.controlling-town", Map.of("town", point.getControllingTown().isEmpty() ? "None" : point.getControllingTown())));
         if (this.plugin.getActiveSessions().containsKey(pointId)) {
             CaptureSession session = this.plugin.getActiveSessions().get(pointId);
-            player.sendMessage(this.plugin.colorize("&eBeing captured by: &7" + session.getTownName()));
+            player.sendMessage(Messages.get("messages.info.capturing-by", Map.of("town", session.getTownName())));
         }
     }
 
@@ -405,21 +420,19 @@ public class CaptureCommands implements CommandExecutor {
             break;
         }
         if (targetPoint == null) {
-            player.sendMessage(this.plugin.colorize(this.plugin.getConfig().getString("messages.errors.not-in-any-zone", "&cYou are not in any capture zone!")));
+            player.sendMessage(Messages.get("errors.not-in-any-zone"));
             return;
         }
         int minPlayers = this.plugin.getConfig().getInt("settings.min-online-players", 5);
         if (Bukkit.getOnlinePlayers().size() < minPlayers) {
-            String message = this.plugin.getConfig().getString("messages.errors.not-enough-players", "&cAt least %minplayers% players must be online to start a capture!")
-                    .replace("%minplayers%", String.valueOf(minPlayers));
-            player.sendMessage(this.plugin.colorize(message));
+            player.sendMessage(Messages.get("errors.not-enough-players", Map.of("minplayers", String.valueOf(minPlayers))));
             return;
         }
         boolean success = this.plugin.startCapture(player, targetPoint.getId());
         if (success) {
-            player.sendMessage(this.plugin.colorize(this.plugin.getConfig().getString("messages.capture.start-success", "&aAttempting to capture " + targetPoint.getName() + "!")));
+            player.sendMessage(Messages.get("messages.capture.start-success", Map.of("point", targetPoint.getName())));
         } else {
-            player.sendMessage(this.plugin.colorize(this.plugin.getConfig().getString("messages.errors.capture-failed", "&cFailed to start capture!")));
+            player.sendMessage(Messages.get("errors.capture-failed"));
         }
     }
 
@@ -429,14 +442,15 @@ public class CaptureCommands implements CommandExecutor {
         int chunkZ = playerLoc.getBlockZ() >> 4;
         String id = "protected_chunk_" + chunkX + "_" + chunkZ;
         if (this.plugin.getCapturePoints().containsKey(id)) {
-            player.sendMessage(this.plugin.colorize("&cThis chunk is already protected!"));
+            player.sendMessage(Messages.get("messages.chunk.already-protected"));
             return;
         }
         String name = "Protected Chunk at " + chunkX + "," + chunkZ;
         Location chunkCenter = new Location(playerLoc.getWorld(), (double)((chunkX << 4) + 8), playerLoc.getY(), (double)((chunkZ << 4) + 8));
         this.plugin.createCapturePoint(id, name, chunkCenter, 0, 0.0);
-        player.sendMessage(this.plugin.colorize("&aChunk protected! This chunk now has the same protection as a capture zone."));
-        player.sendMessage(this.plugin.colorize("&aChunk coordinates: " + chunkX + "," + chunkZ));
+        player.sendMessage(Messages.get("messages.chunk.protected-success"));
+        player.sendMessage(Messages.get("messages.chunk.coordinates", 
+            Map.of("x", String.valueOf(chunkX), "z", String.valueOf(chunkZ))));
         this.showChunkBoundaries(player, chunkX, chunkZ);
     }
 
@@ -473,12 +487,12 @@ public class CaptureCommands implements CommandExecutor {
         String rewardStr = args[4];
         
         if (id.isEmpty() || id.length() > 32) {
-            player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.invalid-id", "&cInvalid ID! Must be between 1 and 32 characters.")));
+            player.sendMessage(Messages.get("errors.invalid-id"));
             return;
         }
         
         if (type.isEmpty() || type.length() > 64) {
-            player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.invalid-type", "&cInvalid type! Must be between 1 and 64 characters.")));
+            player.sendMessage(Messages.get("errors.invalid-type"));
             return;
         }
         
@@ -487,25 +501,28 @@ public class CaptureCommands implements CommandExecutor {
             double reward = Double.parseDouble(rewardStr);
             
             if (chunkRadius <= 0) {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.invalid-radius", "&cRadius must be positive!")));
+                player.sendMessage(Messages.get("errors.invalid-radius"));
                 return;
             }
             
             if (reward < 0.0) {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.invalid-reward", "&cReward cannot be negative!")));
+                player.sendMessage(Messages.get("errors.invalid-reward"));
                 return;
             }
             
             if (plugin.getCapturePoints().containsKey(id)) {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.id-exists", "&cA capture point with this ID already exists!")));
+                player.sendMessage(Messages.get("errors.id-exists"));
                 return;
             }
             
             plugin.createCapturePoint(id, type, player.getLocation(), chunkRadius, reward);
-            player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.create.success", "&aCapture point created successfully!")));
-            player.sendMessage(plugin.colorize("&aRadius: " + chunkRadius + " chunks (" + chunkRadius * 16 + " blocks)"));
+            player.sendMessage(Messages.get("messages.create.success"));
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("radius", String.valueOf(chunkRadius));
+            placeholders.put("blocks", String.valueOf(chunkRadius * 16));
+            player.sendMessage(Messages.get("messages.create.radius-info", placeholders));
         } catch (NumberFormatException e) {
-            player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.errors.invalid-number", "&cRadius and reward must be numbers!")));
+            player.sendMessage(Messages.get("errors.invalid-number"));
         }
     }
 
