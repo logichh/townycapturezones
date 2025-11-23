@@ -1,6 +1,6 @@
 /*
  * Decompiled with CFR 0.152.
- * 
+ *
  * Could not load the following classes:
  *  com.palmergames.bukkit.towny.TownyAPI
  *  com.palmergames.bukkit.towny.object.Resident
@@ -28,6 +28,8 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.ChatMessageType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -56,9 +58,9 @@ implements Listener {
         boolean enteredBuffer = false;
 
         // Skip if player hasn't moved to a different block
-        if (from != null && to != null && 
-            from.getBlockX() == to.getBlockX() && 
-            from.getBlockY() == to.getBlockY() && 
+        if (from != null && to != null &&
+            from.getBlockX() == to.getBlockX() &&
+            from.getBlockY() == to.getBlockY() &&
             from.getBlockZ() == to.getBlockZ()) {
             return;
         }
@@ -67,14 +69,14 @@ implements Listener {
             // Calculate actual block distances (circular zones)
             double currentBlockDistance = this.plugin.getChunkDistance(point.getLocation(), to);
             double previousBlockDistance = from != null ? this.plugin.getChunkDistance(point.getLocation(), from) : Double.MAX_VALUE;
-            
+
             // Convert chunk radius to block distance for circular detection
             int blockRadius = point.getChunkRadius() * 16;
-            
+
             // Check if player is in the capture zone (circular)
             boolean wasInZone = previousBlockDistance * 16 <= blockRadius;
             boolean isInZone = currentBlockDistance * 16 <= blockRadius;
-            
+
             // Check if player is in the buffer zone (circular, 1 chunk outside)
             boolean wasInBuffer = previousBlockDistance * 16 <= blockRadius + 16;
             boolean isInBuffer = currentBlockDistance * 16 <= blockRadius + 16;
@@ -125,17 +127,17 @@ implements Listener {
         Player player = event.getPlayer();
         this.stopContinuousActionBar(player);
         this.playerZones.remove(player.getUniqueId());
-        
+
         // Check if this player has any active capture sessions
         for (Map.Entry<String, CaptureSession> entry : this.plugin.getActiveSessions().entrySet()) {
             CaptureSession session = entry.getValue();
             String pointId = entry.getKey();
-            
+
             // If this player is the initiator of the capture
             if (session.getPlayerName().equals(player.getName())) {
                 // Remove player from session
                 session.getPlayers().remove(player);
-                
+
                 // Check if there are any other players in the session
                 boolean hasOnlinePlayers = false;
                 for (Player sessionPlayer : session.getPlayers()) {
@@ -144,24 +146,15 @@ implements Listener {
                         break;
                     }
                 }
-                
+
                 // If no other players are online, cancel the capture
                 if (!hasOnlinePlayers) {
                     this.plugin.cancelCapture(pointId, "All participants disconnected");
                 }
             }
         }
-        
-        // Clean up any boundary visualization tasks for this player
-        for (Map.Entry<String, org.bukkit.scheduler.BukkitTask> entry : this.plugin.boundaryTasks.entrySet()) {
-            if (entry.getKey().startsWith(player.getUniqueId().toString())) {
-                if (entry.getValue() != null) {
-                    entry.getValue().cancel();
-                }
-            }
-        }
-        // Remove the entries
-        this.plugin.boundaryTasks.entrySet().removeIf(entry -> entry.getKey().startsWith(player.getUniqueId().toString()));
+
+        // Boundary visualization removed; nothing to clean up for this player.
     }
 
     private void startContinuousActionBar(Player player, CapturePoint zone) {
@@ -196,9 +189,16 @@ implements Listener {
     }
 
     private void sendActionBarMessage(Player player, String message) {
-        String playerName = player.getName();
-        String command = "cmi actionbarmsg " + playerName + " " + this.plugin.colorize(message);
-        Bukkit.getServer().dispatchCommand((CommandSender)Bukkit.getConsoleSender(), command);
+        try {
+            // Use native Spigot action bar send to avoid dispatching console commands each tick
+            String text = this.plugin.colorize(message);
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(text));
+        } catch (NoClassDefFoundError | Exception e) {
+            // Fallback to console dispatch if Spigot API not available
+            String playerName = player.getName();
+            String command = "cmi actionbarmsg " + playerName + " " + this.plugin.colorize(message);
+            Bukkit.getServer().dispatchCommand((CommandSender)Bukkit.getConsoleSender(), command);
+        }
     }
 
     private boolean isInvulnerable(Player player) {

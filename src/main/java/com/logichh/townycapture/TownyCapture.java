@@ -1,6 +1,6 @@
 /*
  * Decompiled with CFR 0.152.
- * 
+ *
  * Could not load the following classes:
  *  com.palmergames.bukkit.towny.TownyAPI
  *  com.palmergames.bukkit.towny.object.Town
@@ -67,7 +67,7 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
-import org.bukkit.Particle;
+// Particle effects removed per user request
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -106,7 +106,6 @@ extends JavaPlugin {
     private Map<Location, BlockData> originalBlocks = Collections.synchronizedMap(new HashMap());
     private Map<UUID, Long> firstJoinTimes = Collections.synchronizedMap(new HashMap());
     public Map<UUID, Boolean> hiddenBossBars = Collections.synchronizedMap(new HashMap());
-    public Map<String, BukkitTask> boundaryTasks = Collections.synchronizedMap(new HashMap());
     public Map<UUID, Boolean> disabledNotifications = Collections.synchronizedMap(new HashMap()); // Track who has disabled notifications
     private BukkitTask hourlyRewardTask;
     private boolean dynmapEnabled = false;
@@ -126,51 +125,51 @@ extends JavaPlugin {
     public void onEnable() {
         // Save default config if it doesn't exist
         saveDefaultConfig();
-        
+
         // Initialize messages system
         Messages.init(this);
-        
+
         // Load config
         this.config = getConfig();
-        
+
         // Debug: Log rewards section
         if (this.config.contains("rewards")) {
             this.getLogger().info("Rewards config section: " + this.config.getConfigurationSection("rewards").getValues(true));
         } else {
             this.getLogger().info("No rewards section found in config");
         }
-        
+
         // Create default config values if needed
         createDefaultConfig();
-        
+
         // Check required plugins
         if (!checkRequiredPlugins()) {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        
+
         // Validate config
         if (!validateConfig()) {
             getLogger().severe("Failed to validate config! Disabling plugin...");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        
+
         // Load point types
         loadPointTypes();
-        
+
         // Load capture points
         loadCapturePoints();
-        
+
         // Setup integrations
         setupDynmap();
         setupWorldGuard();
-        
+
         // Start tasks
         startSessionTimeoutChecker();
         startAutoSave();
         startHourlyRewards();
-        
+
         // Register listeners
         getServer().getPluginManager().registerEvents(new CaptureEvents(this), this);
         getServer().getPluginManager().registerEvents(new CommandBlockListener(this), this);
@@ -180,7 +179,7 @@ extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new NewDayListener(this), this);
         reinforcementListener = new ReinforcementListener(this);
         getServer().getPluginManager().registerEvents(reinforcementListener, this);
-        
+
         // Register commands
         CaptureCommands commandExecutor = new CaptureCommands(this);
         PluginCommand command = getCommand("capturepoint");
@@ -191,14 +190,14 @@ extends JavaPlugin {
         }
         command.setExecutor(commandExecutor);
         command.setTabCompleter(new CaptureCommandTabCompleter(this));
-        
+
         // Auto-show boundaries for all online players if enabled
         if (this.config.getBoolean("settings.auto-show-boundaries", true)) {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 this.autoShowBoundariesForPlayer(player);
             }
         }
-        
+
         getLogger().info("TownyCapture has been enabled!");
 
         // Initialize bStats metrics
@@ -209,55 +208,9 @@ extends JavaPlugin {
         metrics.addCustomChart(new SingleLineChart("capture_points", () -> capturePoints.size()));
         metrics.addCustomChart(new SingleLineChart("active_sessions", () -> activeSessions.size()));
     }
-    
-    public void autoShowBoundariesForPlayer(Player player) {
-        for (CapturePoint point : this.capturePoints.values()) {
-            String key = player.getUniqueId() + "_" + point.getId();
-            // Only start if not already showing
-            if (this.boundaryTasks.containsKey(key)) {
-                continue;
-            }
-            
-            Location center = point.getLocation();
-            int blockRadius = point.getChunkRadius() * 16;
-            int sides = Math.max(256, blockRadius * 4);
-            
-            final TownyCapture pluginRef = this;
-            BukkitTask task = new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (!player.isOnline()) {
-                        this.cancel();
-                        pluginRef.boundaryTasks.remove(key);
-                        return;
-                    }
 
-                    World world = center.getWorld();
-                    
-                    for (int i = 0; i < sides; i++) {
-                        double angle = 2.0 * Math.PI * i / sides;
-                        double x = center.getX() + blockRadius * Math.cos(angle);
-                        double z = center.getZ() + blockRadius * Math.sin(angle);
-                        
-                        int surfaceY = world.getHighestBlockYAt((int)Math.floor(x), (int)Math.floor(z));
-                        
-                        for (int h = -10; h <= 40; h++) {
-                            int yPos = surfaceY + h;
-                            if (yPos > 0 && yPos < 320) {
-                                Location particleLoc = new Location(world, x, yPos, z);
-                                try {
-                                    player.getWorld().spawnParticle(Particle.GLOW, particleLoc, 1);
-                                } catch (Exception e) {
-                                    player.getWorld().spawnParticle(Particle.SOUL, particleLoc, 1);
-                                }
-                            }
-                        }
-                    }
-                }
-            }.runTaskTimer(this, 0L, 10L);
-            
-            this.boundaryTasks.put(key, task);
-        }
+    public void autoShowBoundariesForPlayer(Player player) {
+        // Boundary visualization intentionally disabled to avoid scheduled tasks
     }
 
     private boolean checkRequiredPlugins() {
@@ -445,11 +398,7 @@ extends JavaPlugin {
             task.cancel();
         }
         this.captureTasks.clear();
-        for (BukkitTask task : this.boundaryTasks.values()) {
-            if (task == null || task.isCancelled()) continue;
-            task.cancel();
-        }
-        this.boundaryTasks.clear();
+        // Boundary visualization tasks removed to avoid empty scheduled tasks
         for (CapturePoint point : this.capturePoints.values()) {
             if (!this.activeSessions.containsKey(point.getId())) continue;
             this.removeBeacon(point);
@@ -472,7 +421,7 @@ extends JavaPlugin {
         this.originalBlocks.clear();
         this.firstJoinTimes.clear();
         this.hiddenBossBars.clear();
-        this.boundaryTasks.clear();
+        // boundaryTasks removed
         this.disabledNotifications.clear();
         for (BossBar bossBar : this.captureBossBars.values()) {
             if (bossBar == null) continue;
@@ -575,6 +524,25 @@ extends JavaPlugin {
         if (!this.config.contains("messages.reward.hourly_distributed")) {
             this.config.set("messages.reward.hourly_distributed", "&a%town% has received %reward% hourly reward for controlling %point%!");
         }
+        // Reinforcement defaults (performance-conscious)
+        if (!this.config.contains("reinforcements.enabled")) {
+            this.config.set("reinforcements.enabled", false);
+        }
+        if (!this.config.contains("reinforcements.max-total-mobs")) {
+            this.config.set("reinforcements.max-total-mobs", 200);
+        }
+        if (!this.config.contains("reinforcements.tracking-interval-ticks")) {
+            this.config.set("reinforcements.tracking-interval-ticks", 40);
+        }
+        if (!this.config.contains("reinforcements.phase-interval-ticks")) {
+            this.config.set("reinforcements.phase-interval-ticks", 40);
+        }
+        if (!this.config.contains("reinforcements.spawn-smoothing.enabled")) {
+            this.config.set("reinforcements.spawn-smoothing.enabled", true);
+        }
+        if (!this.config.contains("reinforcements.spawn-smoothing.max-per-tick")) {
+            this.config.set("reinforcements.spawn-smoothing.max-per-tick", 5);
+        }
         try {
             this.saveConfig();
         } catch (Exception e) {
@@ -644,7 +612,7 @@ extends JavaPlugin {
         if (disabledNotifications.getOrDefault(player.getUniqueId(), false)) {
             return;
         }
-        
+
         if (!this.hiddenBossBars.getOrDefault(player.getUniqueId(), false).booleanValue()) {
             for (BossBar bossBar : this.captureBossBars.values()) {
                 bossBar.addPlayer(player);
@@ -665,7 +633,7 @@ extends JavaPlugin {
             try {
                 this.dynmapAPI = (DynmapAPI) dynmapPlugin;
                 this.markerAPI = this.dynmapAPI.getMarkerAPI();
-                
+
                 // Create marker set with proper ID and label
                 this.markerSet = this.markerAPI.createMarkerSet("townycapture.markerset", "Capture Points", null, false);
                 if (this.markerSet == null) {
@@ -677,17 +645,17 @@ extends JavaPlugin {
                 // Set marker set properties
                 this.markerSet.setLayerPriority(10);
                 this.markerSet.setHideByDefault(false);
-                
+
                 // Initialize area style
                 this.areaStyle = new AreaStyle(this.config, "dynmap", this.markerAPI);
-                
+
                 // Create updater and start it
                 this.townUpdater = new UpdateZones(this, this.markerSet, this.areaStyle);
                 startTownUpdater();
-                
+
                 // Update all markers immediately
                 this.updateAllMarkers();
-                
+
                 this.getLogger().info("Dynmap integration enabled!");
             } catch (Exception e) {
                 this.getLogger().severe("Failed to initialize Dynmap: " + e.getMessage());
@@ -704,13 +672,13 @@ extends JavaPlugin {
         if (!this.dynmapEnabled || this.markerSet == null) {
             return;
         }
-        
+
         try {
             // Clear existing markers
             for (Marker marker : this.markerSet.getMarkers()) {
                 marker.deleteMarker();
             }
-            
+
             // Update all capture points
             for (CapturePoint point : this.capturePoints.values()) {
                 if (point.isShowOnMap()) {
@@ -745,8 +713,8 @@ extends JavaPlugin {
             return;
         }
         for (CapturePoint point : this.capturePoints.values()) {
-            String status = point.getControllingTown().isEmpty() ? 
-                Messages.get("messages.list.unclaimed") : 
+            String status = point.getControllingTown().isEmpty() ?
+                Messages.get("messages.list.unclaimed") :
                 Messages.get("messages.list.controlled", Map.of("town", point.getControllingTown()));
             player.sendMessage(Messages.get("messages.list.format", Map.of(
                 "id", point.getId(),
@@ -793,7 +761,7 @@ extends JavaPlugin {
     public void listPointTypes(Player player) {
         player.sendMessage(Messages.get("messages.types.header"));
         for (Map.Entry<String, String> entry : this.pointTypes.entrySet()) {
-            player.sendMessage(Messages.get("messages.types.format", 
+            player.sendMessage(Messages.get("messages.types.format",
                 "type", entry.getKey(),
                 "description", entry.getValue()));
         }
@@ -900,11 +868,11 @@ extends JavaPlugin {
     private void createBeacon(Location location) {
         World world = location.getWorld();
         if (world == null) return;
-        
+
         Location glassLoc = location.clone();
         glassLoc.setY((double)world.getHighestBlockYAt(glassLoc));
         Location beaconLoc = glassLoc.clone().subtract(0.0, 1.0, 0.0);
-        
+
         // Store original blocks before modifying them
         for (int x = -1; x <= 1; ++x) {
             for (int z = -1; z <= 1; ++z) {
@@ -912,10 +880,10 @@ extends JavaPlugin {
                 storeOriginalBlock(ironLoc);
             }
         }
-        
+
         storeOriginalBlock(beaconLoc);
         storeOriginalBlock(glassLoc);
-        
+
         // Place beacon structure
         for (int x = -1; x <= 1; ++x) {
             for (int z = -1; z <= 1; ++z) {
@@ -924,10 +892,10 @@ extends JavaPlugin {
                 ironBlock.setType(Material.IRON_BLOCK);
             }
         }
-        
+
         Block beaconBlock = beaconLoc.getBlock();
         beaconBlock.setType(Material.BEACON);
-        
+
         Block glassBlock = glassLoc.getBlock();
         glassBlock.setType(Material.GLASS);
     }
@@ -1028,7 +996,7 @@ extends JavaPlugin {
             BarStyle.SOLID
         );
         captureBossBars.put(pointId, bossBar);
-        
+
         // Only show boss bar to members of the capturing town
         for (Player online : Bukkit.getOnlinePlayers()) {
             if (!hiddenBossBars.getOrDefault(online.getUniqueId(), false) &&
@@ -1051,7 +1019,7 @@ extends JavaPlugin {
             "point", point.getName()
         ));
         broadcastMessage(prepMessage);
-        
+
         // Play capture started sound
         playCaptureSoundAtLocation("capture-started", point.getLocation());
 
@@ -1064,7 +1032,7 @@ extends JavaPlugin {
 
             session.decrementPreparationTime();
             int timeLeft = session.getRemainingPreparationTime();
-            
+
             if (timeLeft <= 0) {
                 // Start capture phase
                 startCapturePhase(point, town, player);
@@ -1115,7 +1083,7 @@ extends JavaPlugin {
             ));
             bossBar.setTitle(title);
             bossBar.setColor(BarColor.RED);
-            
+
             // Show capture phase boss bar to all players
             bossBar.removeAll();
             for (Player online : Bukkit.getOnlinePlayers()) {
@@ -1132,15 +1100,15 @@ extends JavaPlugin {
             "zone", point.getName()
         ));
         broadcastMessage(phaseMessage);
-        
+
         // Play phase started sound
         playCaptureSoundAtLocation("capture-phase-started", point.getLocation());
-        
+
         // Start reinforcement waves
         if (reinforcementListener != null) {
             reinforcementListener.startReinforcementWaves(pointId, point);
         }
-        
+
         // Start capture task
         BukkitTask captureTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             if (!session.isActive()) {
@@ -1173,7 +1141,7 @@ extends JavaPlugin {
     private void completeCapture(CapturePoint point) {
         // Get the capturing town name before clearing it
         String capturingTown = point.getCapturingTown();
-        
+
         // If capturingTown is null, try to get it from the active session
         if (capturingTown == null || capturingTown.isEmpty()) {
             CaptureSession session = activeSessions.get(point.getId());
@@ -1181,29 +1149,29 @@ extends JavaPlugin {
                 capturingTown = session.getTownName();
             }
         }
-        
+
         // If still null, use a default value
         if (capturingTown == null || capturingTown.isEmpty()) {
             capturingTown = "Unknown";
             getLogger().warning("Capture completed for point " + point.getId() + " but no town was found!");
         }
-        
+
         // Set the controlling town
         point.setControllingTown(capturingTown);
         point.setCapturingTown(null);
         point.setCaptureProgress(0.0);
-        
+
         // Set the town's color for Dynmap visualization
         String townColor = getTownColor(capturingTown);
         point.setColor(townColor);
-        
+
         // Broadcast capture completion message only once
         String completeMessage = Messages.get("messages.capture.complete", Map.of(
             "town", capturingTown,
             "zone", point.getName()
         ));
         broadcastMessage(completeMessage);
-        
+
         // Send personal message to capturing players
         String personalMessage = Messages.get("messages.capture.congratulations", Map.of("zone", point.getName()));
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -1217,38 +1185,38 @@ extends JavaPlugin {
                 // Ignore errors
             }
         }
-        
+
         // Play capture complete sound
         playCaptureSoundAtLocation("capture-complete", point.getLocation());
-        
+
         // Remove the boss bar
         removeCaptureBossBar(point.getId());
-        
+
         // Remove the beacon
         removeBeacon(point);
-        
+
         // Clear reinforcements
         if (reinforcementListener != null) {
             reinforcementListener.clearReinforcements(point.getId());
         }
-        
+
         // Update Dynmap if enabled
         if (dynmapEnabled) {
             updateAllMarkers();
         }
-        
+
         // Stop the capture session
         stopCapture(point.getId());
-        
+
         // Cancel the capture task
         BukkitTask task = captureTasks.remove(point.getId());
         if (task != null) {
             task.cancel();
         }
-        
+
         // Log successful capture
         logSuccessfulCapture(point.getId());
-        
+
         // Save capture points
         saveCapturePoints();
     }
@@ -1260,12 +1228,12 @@ extends JavaPlugin {
         }
         CaptureSession session = this.activeSessions.get(pointId);
         CapturePoint point = this.capturePoints.get(pointId);
-        
+
         // Clear reinforcements
         if (reinforcementListener != null) {
             reinforcementListener.clearReinforcements(pointId);
         }
-        
+
         this.removeBeacon(point);
         BossBar bossBar = this.captureBossBars.remove(pointId);
         if (bossBar != null) {
@@ -1302,12 +1270,12 @@ extends JavaPlugin {
         }
         CaptureSession session = this.activeSessions.get(pointId);
         CapturePoint point = this.capturePoints.get(pointId);
-        
+
         // Clear reinforcements
         if (reinforcementListener != null) {
             reinforcementListener.clearReinforcements(pointId);
         }
-        
+
         this.removeBeacon(point);
         this.removeCaptureBossBar(pointId);
         this.activeSessions.remove(pointId);
@@ -1344,37 +1312,37 @@ extends JavaPlugin {
         if (town == null) {
             return false;
         }
-        
+
         // Stop any active capture session
         if (activeSessions.containsKey(pointId)) {
             stopCapture(pointId, "Force captured by admin");
         }
-        
+
         // Set the controlling town and capture progress
         point.setControllingTown(town.getName());
         point.setCaptureProgress(100.0);
         point.setLastCaptureTime(System.currentTimeMillis());
         point.setLastCapturingTown(town.getName());
-        
+
         // Set the town's color for Dynmap
         String townColor = getTownColor(townName);
         point.setColor(townColor);
-        
+
         // Update Dynmap if enabled
         if (this.dynmapEnabled) {
             this.updateAllMarkers();
         }
-        
+
         // Save changes
         saveCapturePoints();
-        
+
         // Broadcast the capture
         String message = Messages.get("messages.capture.complete", Map.of(
             "town", town.getName(),
             "zone", point.getName()
         ));
         Bukkit.broadcastMessage(message);
-        
+
         return true;
     }
 
@@ -1453,48 +1421,37 @@ extends JavaPlugin {
         if (point == null) {
             return false;
         }
-        
+
         // Stop any active capture session first
         if (activeSessions.containsKey(pointId)) {
             stopCapture(pointId, "Zone deleted by admin");
         }
-        
+
         // Clear reinforcements if any
         if (reinforcementListener != null) {
             reinforcementListener.clearReinforcements(pointId);
         }
-        
+
         // Remove beacon if exists
         removeBeacon(point);
-        
-        // Clean up boundary visualization tasks for this zone
-        boundaryTasks.entrySet().removeIf(entry -> {
-            String key = entry.getKey();
-            if (key.endsWith("_" + pointId)) {
-                BukkitTask task = entry.getValue();
-                if (task != null && !task.isCancelled()) {
-                    task.cancel();
-                }
-                return true;
-            }
-            return false;
-        });
-        
+
+        // Boundary visualization removed; no scheduled tasks to clean up
+
         // Remove Dynmap markers if enabled
         if (dynmapEnabled && townUpdater != null) {
             townUpdater.removeMarkers(pointId);
         }
-        
+
         // Now remove the point from all maps
         capturePoints.remove(pointId);
         captureTasks.remove(pointId);
         captureBossBars.remove(pointId);
-        
+
         // Save the updated capture points
         saveCapturePoints();
-        
+
         getLogger().info("Capture point '" + pointId + "' has been deleted and all associated activities stopped.");
-        
+
         return true;
     }
 
@@ -1503,7 +1460,7 @@ extends JavaPlugin {
             getLogger().warning("Maximum number of capture points reached!");
             return;
         }
-        
+
         int minRadius = config.getInt("settings.capture-point.min-radius", 1);
         int maxRadius = config.getInt("settings.capture-point.max-radius", 10);
         if (chunkRadius < minRadius) {
@@ -1511,7 +1468,7 @@ extends JavaPlugin {
         } else if (chunkRadius > maxRadius) {
             chunkRadius = maxRadius;
         }
-        
+
         double minReward = config.getDouble("settings.capture-point.min-reward", 100.0);
         double maxReward = config.getDouble("settings.capture-point.max-reward", 10000.0);
         if (reward < minReward) {
@@ -1519,7 +1476,7 @@ extends JavaPlugin {
         } else if (reward > maxReward) {
             reward = maxReward;
         }
-        
+
         CapturePoint point = new CapturePoint(id, type, location, chunkRadius, reward);
         int minPlayers = config.getInt("settings.capture-point.min-players", 1);
         int maxPlayers = config.getInt("settings.capture-point.max-players", 10);
@@ -1527,61 +1484,13 @@ extends JavaPlugin {
         point.setMaxPlayers(maxPlayers);
         capturePoints.put(id, point);
         saveCapturePoints();
-        
+
         // Update Dynmap markers immediately for the new point
         if (dynmapEnabled && townUpdater != null) {
             townUpdater.updateMarker(point);
         }
-        
-        // Auto-show boundaries for all online players if enabled
-        if (config.getBoolean("settings.auto-show-boundaries", true)) {
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                String key = player.getUniqueId() + "_" + point.getId();
-                if (boundaryTasks.containsKey(key)) {
-                    continue; // Already showing
-                }
-                
-                Location center = point.getLocation();
-                int blockRadius = point.getChunkRadius() * 16;
-                int sides = Math.max(256, blockRadius * 4);
-                
-                final TownyCapture pluginRef = this;
-                BukkitTask task = new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        if (!player.isOnline()) {
-                            this.cancel();
-                            pluginRef.boundaryTasks.remove(key);
-                            return;
-                        }
 
-                        World world = center.getWorld();
-                        
-                        for (int i = 0; i < sides; i++) {
-                            double angle = 2.0 * Math.PI * i / sides;
-                            double x = center.getX() + blockRadius * Math.cos(angle);
-                            double z = center.getZ() + blockRadius * Math.sin(angle);
-                            
-                            int surfaceY = world.getHighestBlockYAt((int)Math.floor(x), (int)Math.floor(z));
-                            
-                            for (int h = -10; h <= 40; h++) {
-                                int yPos = surfaceY + h;
-                                if (yPos > 0 && yPos < 320) {
-                                    Location particleLoc = new Location(world, x, yPos, z);
-                                    try {
-                                        player.getWorld().spawnParticle(Particle.GLOW, particleLoc, 1);
-                                    } catch (Exception e) {
-                                        player.getWorld().spawnParticle(Particle.SOUL, particleLoc, 1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }.runTaskTimer(this, 0L, 10L);
-                
-                boundaryTasks.put(key, task);
-            }
-        }
+        // Auto-show-boundaries disabled (no scheduled tasks)
     }
 
     public void handleNewDay() {
@@ -1704,14 +1613,14 @@ extends JavaPlugin {
             case "darkgreen": {
                 return "\u00a72";
             }
-            case "darkaqua": 
+            case "darkaqua":
             case "darkcyan": {
                 return "\u00a73";
             }
             case "darkred": {
                 return "\u00a74";
             }
-            case "darkpurple": 
+            case "darkpurple":
             case "darkmagenta": {
                 return "\u00a75";
             }
@@ -1920,7 +1829,7 @@ extends JavaPlugin {
         if (town == null) {
             return "#8B0000"; // Default dark red color
         }
-        
+
         java.awt.Color color = town.getMapColor();
         return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
@@ -1940,17 +1849,17 @@ extends JavaPlugin {
         int remainingSeconds = seconds % 60;
         return String.format("%d:%02d", minutes, remainingSeconds);
     }
-    
+
     // Sound System Methods
     public void playCaptureSound(String soundEvent) {
         if (!config.getBoolean("sounds.enabled", true)) {
             return;
         }
-        
+
         String soundName = config.getString("sounds." + soundEvent + ".sound", "entity.player.levelup");
         float volume = (float) config.getDouble("sounds." + soundEvent + ".volume", 1.0);
         float pitch = (float) config.getDouble("sounds." + soundEvent + ".pitch", 1.0);
-        
+
         for (Player player : Bukkit.getOnlinePlayers()) {
             // Skip if player has disabled notifications
             if (disabledNotifications.getOrDefault(player.getUniqueId(), false)) {
@@ -1964,19 +1873,19 @@ extends JavaPlugin {
             }
         }
     }
-    
+
     public void playCaptureSoundAtLocation(String soundEvent, Location location) {
         if (!config.getBoolean("sounds.enabled", true)) {
             return;
         }
-        
+
         String soundName = config.getString("sounds." + soundEvent + ".sound", "entity.player.levelup");
         float volume = (float) config.getDouble("sounds." + soundEvent + ".volume", 1.0);
         float pitch = (float) config.getDouble("sounds." + soundEvent + ".pitch", 1.0);
-        
+
         // Only play for players who haven't disabled notifications
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.getWorld() == location.getWorld() && 
+            if (player.getWorld() == location.getWorld() &&
                 player.getLocation().distance(location) < 100 &&
                 !disabledNotifications.getOrDefault(player.getUniqueId(), false)) {
                 try {
@@ -2023,7 +1932,7 @@ extends JavaPlugin {
                     bossBar.addPlayer(player);
                 }
             }
-            
+
             // Auto-show boundaries for new player if enabled
             if (TownyCapture.this.config.getBoolean("settings.auto-show-boundaries", true)) {
                 TownyCapture.this.autoShowBoundariesForPlayer(player);
@@ -2063,7 +1972,7 @@ extends JavaPlugin {
             BarStyle.SOLID
         );
         captureBossBars.put(pointId, bossBar);
-        
+
         // Show boss bar to all players for testing
         for (Player online : Bukkit.getOnlinePlayers()) {
             if (!disabledNotifications.getOrDefault(online.getUniqueId(), false)) {
@@ -2079,7 +1988,7 @@ extends JavaPlugin {
 
             session.decrementPreparationTime();
             int timeLeft = session.getRemainingPreparationTime();
-            
+
             if (timeLeft <= 0) {
                 startCapturePhase(point, town, player);
                 return;
