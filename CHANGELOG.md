@@ -1,5 +1,52 @@
 # TownyCapture - Change Log
 
+## Version 1.0.3 - [2025]
+
+### 🌍 Complete Internationalization & Localization
+
+**Full Multi-Language Support:** Added comprehensive internationalization system supporting unlimited languages with automatic fallback to English.
+
+**New Features:**
+- **Messages.java System**: Centralized localization handler with caching, Map-based placeholder replacement, and ChatColor support
+- **Language Files**: Complete English (`en.json`) and Italian (`it.json`) translations with 70+ messages each
+- **Automatic Fallback**: Falls back to English if selected language is missing or incomplete
+- **Dynamic Language Switching**: Players can change language with `/capturepoint setlang <code>` command
+
+**Localized Message Categories:**
+- ✅ **Zone Messages**: Entry/exit notifications, continuous zone warnings
+- ✅ **Action Bars**: Capture progress, zone status updates
+- ✅ **Boss Bars**: Capture timers and progress displays
+- ✅ **Capture Phases**: Preparation, capture phase transitions, completion messages
+- ✅ **Reinforcements**: Mob spawn announcements, timer reduction notifications
+- ✅ **Cancellations**: Death-based, admin, and movement cancellations
+- ✅ **Reward System**: Daily and hourly reward distribution announcements
+- ✅ **Commands**: All command responses, help messages, error messages
+- ✅ **Admin Actions**: Point resets, force captures, type changes
+- ✅ **Protection**: Zone protection violation messages
+
+**Technical Implementation:**
+- **Placeholder System**: Consistent `{placeholder}` format (e.g., `{town}`, `{zone}`, `{reward}`)
+- **Map-based Replacement**: Type-safe placeholder substitution using `Map.of()`
+- **JSON Language Files**: Easy to edit and extend for new languages
+- **Backward Compatibility**: All existing functionality preserved
+
+**Language Support:**
+- **English (en)**: Complete native translations
+- **Italian (it)**: Complete professional translations
+- **Extensible**: Add any language by creating `{lang}.json` file in `/lang/` folder
+
+**Configuration:**
+```yaml
+settings:
+  language: "en"  # Set default language ("en", "it", "fr", etc.)
+```
+
+**Usage:**
+- Players can switch languages: `/capturepoint setlang it`
+- Server owners can set default language in config.yml
+- All messages automatically use selected language
+- Missing translations fall back to English
+
 ## Version 1.0.2 - [2025]
 
 ### ✨ New Features
