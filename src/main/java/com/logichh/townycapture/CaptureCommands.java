@@ -199,22 +199,6 @@ public class CaptureCommands implements CommandExecutor {
                 }
                 handleResetAll(sender);
                 return true;
-            case "showzone":
-                if (player == null) {
-                    sender.sendMessage(Messages.get("errors.player-only"));
-                    return true;
-                }
-                if (args.length < 2) {
-                    player.sendMessage(Messages.get("errors.usage-showzone"));
-                    player.sendMessage(Messages.get("messages.zone.toggle-hint"));
-                    return true;
-                }
-                if (args[1].equalsIgnoreCase("all")) {
-                    toggleAllZoneBoundaries(player);
-                } else {
-                    showZoneBoundaries(player, args[1]);
-                }
-                return true;
             case "reload":
                 if (!sender.hasPermission("capturepoints.admin.reload")) {
                     sender.sendMessage(Messages.get("errors.no-permission"));
@@ -339,7 +323,6 @@ public class CaptureCommands implements CommandExecutor {
         sender.sendMessage(Messages.get("help.main.list"));
         sender.sendMessage(Messages.get("help.main.info"));
         sender.sendMessage(Messages.get("help.main.capture"));
-        sender.sendMessage(Messages.get("help.main.showzone"));
         sender.sendMessage(Messages.get("help.main.notifications"));
 
         if (sender.hasPermission("capturepoints.admin")) {
@@ -353,7 +336,6 @@ public class CaptureCommands implements CommandExecutor {
         sender.sendMessage(Messages.get("help.admin.create"));
         sender.sendMessage(Messages.get("help.admin.deletezone"));
         sender.sendMessage(Messages.get("help.admin.stop"));
-        sender.sendMessage(Messages.get("help.admin.showzone"));
         sender.sendMessage(Messages.get("help.admin.settype"));
         sender.sendMessage(Messages.get("help.admin.types"));
         sender.sendMessage(Messages.get("help.admin.forcecapture"));
@@ -501,22 +483,6 @@ public class CaptureCommands implements CommandExecutor {
         } catch (NumberFormatException e) {
             player.sendMessage(Messages.get("errors.invalid-number"));
         }
-    }
-
-    private void showZoneBoundaries(Player player, String pointId) {
-        CapturePoint point = this.plugin.getCapturePoints().get(pointId);
-        if (point == null) {
-            player.sendMessage(this.plugin.colorize("&cCapture point not found!"));
-            return;
-        }
-
-        // Boundary visualization has been disabled to avoid scheduled tasks.
-        player.sendMessage(this.plugin.colorize("&cZone boundary visualization is disabled on this build."));
-    }
-
-    private void toggleAllZoneBoundaries(Player player) {
-        // Boundary visualization disabled; inform user
-        player.sendMessage(plugin.colorize("&cZone boundary visualization is disabled on this build."));
     }
 
     private void runTests(Player player) {

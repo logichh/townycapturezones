@@ -96,7 +96,6 @@ public class TownyCapture
 extends JavaPlugin {
     private FileConfiguration config;
     private File capturePointsFile;
-    private FileConfiguration capturePointsConfig;
     private Map<String, CapturePoint> capturePoints = Collections.synchronizedMap(new HashMap());
     private Map<String, CaptureSession> activeSessions = Collections.synchronizedMap(new HashMap());
     private Map<String, BossBar> captureBossBars = Collections.synchronizedMap(new HashMap());
@@ -125,6 +124,9 @@ extends JavaPlugin {
     public void onEnable() {
         // Save default config if it doesn't exist
         saveDefaultConfig();
+
+        // Initialize capture points file
+        this.capturePointsFile = new File(this.getDataFolder(), "capture_points.yml");
 
         // Initialize messages system
         Messages.init(this);
@@ -771,7 +773,6 @@ extends JavaPlugin {
         this.reloadConfig();
         this.config = this.getConfig();
         Messages.reload();
-        this.capturePointsConfig = YamlConfiguration.loadConfiguration((File)this.capturePointsFile);
         this.capturePoints.clear();
         this.loadCapturePoints();
         this.loadPointTypes();

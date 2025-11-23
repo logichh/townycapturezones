@@ -42,7 +42,6 @@ implements TabCompleter {
             subCommands.add("list");
             subCommands.add("info");
             subCommands.add("capture");
-            subCommands.add("showzone");
             subCommands.add("notifications");
             if (player.hasPermission("townycapture.admin")) {
                 subCommands.add("admin");
@@ -83,12 +82,6 @@ implements TabCompleter {
             case "info": {
                 if (args.length != 2) break;
                 return this.filterCompletions(new ArrayList<String>(this.plugin.getCapturePoints().keySet()), args[1]);
-            }
-            case "showzone": {
-                if (args.length != 2) break;
-                ArrayList<String> options = new ArrayList<String>(this.plugin.getCapturePoints().keySet());
-                options.add("all"); // Add "all" option for toggling all zones
-                return this.filterCompletions(options, args[1]);
             }
             case "stop": {
                 if (!player.hasPermission("townycapture.admin.stop") || args.length != 2) break;
