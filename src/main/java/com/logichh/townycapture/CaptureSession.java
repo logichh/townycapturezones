@@ -107,9 +107,6 @@ public class CaptureSession {
         if (this.bossBar != null) {
             this.bossBar.removeAll();
         }
-        if (this.point != null) {
-            this.point.setLastCaptureTime(System.currentTimeMillis());
-        }
         this.players.clear();
         this.progress.clear();
         this.warnedPlayers.clear();

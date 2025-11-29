@@ -427,6 +427,11 @@ extends JavaPlugin {
                 this.getLogger().warning("Point " + point.getId() + " max players too high, setting to maximum");
                 point.setMaxPlayers(this.config.getInt("settings.capture-point.max-players", 10));
             }
+            long captureCooldown = this.config.getLong("capture-conditions.capture-cooldown.duration-ms", 300000L);
+            if (captureCooldown < 0L) {
+                this.getLogger().warning("Invalid capture cooldown, using default: 300000");
+                this.config.set("capture-conditions.capture-cooldown.duration-ms", 300000L);
+            }
             // Validate reward settings
             String rewardType = this.config.getString("rewards.reward-type", "daily");
             if (!"daily".equalsIgnoreCase(rewardType) && !"hourly".equalsIgnoreCase(rewardType)) {
@@ -729,6 +734,15 @@ extends JavaPlugin {
         }
         if (!this.config.contains("settings.auto-show-boundaries")) {
             this.config.set("settings.auto-show-boundaries", (Object)true);
+        }
+        if (!this.config.contains("capture-conditions.prevent-self-capture")) {
+            this.config.set("capture-conditions.prevent-self-capture", true);
+        }
+        if (!this.config.contains("capture-conditions.capture-cooldown.enabled")) {
+            this.config.set("capture-conditions.capture-cooldown.enabled", true);
+        }
+        if (!this.config.contains("capture-conditions.capture-cooldown.duration-ms")) {
+            this.config.set("capture-conditions.capture-cooldown.duration-ms", 300000L);
         }
         if (!this.config.contains("colors.unclaimed-fill")) {
             this.config.set("colors.unclaimed-fill", (Object)"#8B0000"); // Dark red
@@ -1240,6 +1254,36 @@ extends JavaPlugin {
             player.sendMessage(Messages.get("messages.capture.not-in-radius"));
             return false;
         }
+        
+        // Block self-capture when town already controls the point
+        boolean preventSelfCapture = config.getBoolean("capture-conditions.prevent-self-capture", true);
+        String controllingTown = point.getControllingTown();
+        if (preventSelfCapture && controllingTown != null && !controllingTown.isEmpty() &&
+            controllingTown.equalsIgnoreCase(town.getName())) {
+            player.sendMessage(Messages.get("errors.already-controls-point", Map.of(
+                "point", point.getName()
+            )));
+            return false;
+        }
+
+        // Enforce cooldown after a successful capture
+        if (config.getBoolean("capture-conditions.capture-cooldown.enabled", true) && 
+            controllingTown != null && !controllingTown.isEmpty()) {
+            long cooldownMs = config.getLong("capture-conditions.capture-cooldown.duration-ms", 300000L);
+            long lastCaptureTime = point.getLastCaptureTime();
+            if (cooldownMs > 0 && lastCaptureTime > 0L) {
+                long elapsed = System.currentTimeMillis() - lastCaptureTime;
+                if (elapsed < cooldownMs) {
+                    int secondsLeft = (int)Math.ceil((cooldownMs - elapsed) / 1000.0);
+                    String timeLeft = formatTime(Math.max(secondsLeft, 1));
+                    player.sendMessage(Messages.get("errors.capture-cooldown-active", Map.of(
+                        "time", timeLeft,
+                        "point", point.getName()
+                    )));
+                    return false;
+                }
+            }
+        }
 
         // Check if point is already being captured
         CaptureSession existingSession = activeSessions.get(pointId);
@@ -1443,6 +1487,8 @@ extends JavaPlugin {
         point.setControllingTown(capturingTown);
         point.setCapturingTown(null);
         point.setCaptureProgress(0.0);
+        point.setLastCapturingTown(capturingTown);
+        point.setLastCaptureTime(System.currentTimeMillis());
         
         // Set the town's color for Dynmap visualization
         String townColor = getTownColor(capturingTown);

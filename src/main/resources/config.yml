@@ -241,6 +241,14 @@ capture-conditions:
   # Weather restrictions
   allow-capture-in-rain: true
   allow-capture-in-storm: true
+
+  # Prevent towns from recapturing zones they already control
+  prevent-self-capture: true
+
+  # Cooldown after a successful capture before the point can be contested again (in milliseconds)
+  capture-cooldown:
+    enabled: true
+    duration-ms: 300000
   
   # Anti-exploit settings
   anti-exploit:

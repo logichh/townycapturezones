@@ -45,6 +45,8 @@
   "errors.point-already-exists": "&cCapture point '{point}' already exists.",
   "errors.not-in-town": "&cYou must be in a town to start a capture.",
   "errors.not-town-mayor": "&cOnly town mayors can start captures.",
+  "errors.already-controls-point": "&cYour town already controls {point}; you cannot capture it again.",
+  "errors.capture-cooldown-active": "&c{point} was recently captured. Please wait {time} before attempting again.",
   "errors.usage-info": "&cUsage: /capturepoint info <point>",
   "errors.usage-create": "&cUsage: /capturepoint create <id> <type> <radius> <reward>",
   "errors.usage-stop": "&cUsage: /capturepoint stop <point>",
