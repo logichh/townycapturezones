@@ -1,5 +1,12 @@
 # TownyCapture - Change Log
 
+## Version 1.0.7 - [2025]
+
+### Changed
+- Towns can no longer start a capture on zones they already control (configurable via `capture-conditions.prevent-self-capture`).
+- Added per-zone capture cooldown (default 5 minutes) between any successful captures, configurable under `capture-conditions.capture-cooldown`.
+- Successful captures now stamp the last capturing town and timestamp for accurate cooldown enforcement without blocking admin resets/cancellations.
+
 ## Version 1.0.6 - [2025]
 
 ### Added (Boundary visualization, weekly resets are modular)
