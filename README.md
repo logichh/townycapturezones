@@ -46,24 +46,24 @@ TownyCapture extends the Towny plugin by adding strategic capture points that to
 ## Commands
 
 ### Main Command
-- `/capturepoint` or `/cp` - Main command for capture points
+- `/capturepoint` (alias `/cap`) - Main command for capture points
 
 ### Subcommands
-- `/cp list` - List all capture points
-- `/cp info <name>` - Get information about a specific capture point
-- `/cp capture <name>` - Attempt to capture a point
+- `/cap list` - List all capture points
+- `/cap info <name>` - Get information about a specific capture point
+- `/cap capture <name>` - Attempt to capture a point
 
 ### Admin Commands (require `capturepoints.admin` permission)
-- `/cp create <name>` - Create a new capture point
-- `/cp deletezone <name> [CONFIRM]` - Delete a capture point (requires explicit CONFIRM)
-- `/cp reload` - Reload the plugin configuration
-- `/cp stop <name>` - Stop an active capture session
-- `/cp forcecapture <name> <town>` - Force capture a point for a town
-- `/cp reset <name>` - Reset a capture point
-- `/cp settype <name> <type>` - Set the type of a capture point
-- `/cp setitempayout <name>` - Configure item rewards
-- `/cp timewindow <name> <start> <end>` - Set active time windows
-- `/cp togglechat` - Toggle capture-related chat messages
+- `/cap create <name>` - Create a new capture point
+- `/cap deletezone <name> [CONFIRM]` - Delete a capture point (requires explicit CONFIRM)
+- `/cap reload` - Reload the plugin configuration
+- `/cap stop <name>` - Stop an active capture session
+- `/cap forcecapture <name> <town>` - Force capture a point for a town
+- `/cap reset <name>` - Reset a capture point
+- `/cap settype <name> <type>` - Set the type of a capture point
+- `/cap setitempayout <name>` - Configure item rewards
+- `/cap timewindow <name> <start> <end>` - Set active time windows
+- `/cap togglechat` - Toggle capture-related chat messages
 
 ## Permissions
 

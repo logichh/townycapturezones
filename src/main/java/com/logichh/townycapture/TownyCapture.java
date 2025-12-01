@@ -207,6 +207,24 @@ extends JavaPlugin {
             }
         }
         
+        // Display startup banner
+        getLogger().info("═════════════════════════════════════════════════════════");
+        getLogger().info("  ████████╗ ██████╗ ██╗    ██╗███╗   ██╗██╗   ██╗");
+        getLogger().info("  ╚══██╔══╝██╔═══██╗██║    ██║████╗  ██║╚██╗ ██╔╝");
+        getLogger().info("     ██║   ██║   ██║██║ █╗ ██║██╔██╗ ██║ ╚████╔╝ ");
+        getLogger().info("     ██║   ██║   ██║██║███╗██║██║╚██╗██║  ╚██╔╝  ");
+        getLogger().info("     ██║   ╚██████╔╝╚███╔███╔╝██║ ╚████║   ██║   ");
+        getLogger().info("     ╚═╝    ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝   ╚═╝   ");
+        getLogger().info("");
+        getLogger().info("   ██████╗ █████╗ ██████╗ ████████╗██╗   ██╗██████╗ ███████╗");
+        getLogger().info("  ██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██║   ██║██╔══██╗██╔════╝");
+        getLogger().info("  ██║     ███████║██████╔╝   ██║   ██║   ██║██████╔╝█████╗  ");
+        getLogger().info("  ██║     ██╔══██║██╔═══╝    ██║   ██║   ██║██╔══██╗██╔══╝  ");
+        getLogger().info("  ╚██████╗██║  ██║██║        ██║   ╚██████╔╝██║  ██║███████╗");
+        getLogger().info("   ╚═════╝╚═╝  ╚═╝╚═╝        ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝");
+        getLogger().info("");
+        getLogger().info("                 v" + getDescription().getVersion() + " by Milin");
+        getLogger().info("═════════════════════════════════════════════════════════");
         getLogger().info("TownyCapture has been enabled!");
 
         // Initialize bStats metrics
@@ -1468,7 +1486,16 @@ extends JavaPlugin {
     }
 
     private void completeCapture(CapturePoint point) {
-        CaptureSession session = activeSessions.get(point.getId());
+        // Defensive guards: ensure point still exists and session is valid
+        if (point == null) {
+            return;
+        }
+        String pointId = point.getId();
+        if (!this.capturePoints.containsKey(pointId)) {
+            // Point was removed; bail out
+            return;
+        }
+        CaptureSession session = activeSessions.get(pointId);
         // Get the capturing town name before clearing it
         String capturingTown = point.getCapturingTown();
         
@@ -1548,7 +1575,7 @@ extends JavaPlugin {
         }
         
         // Remove the boss bar
-        removeCaptureBossBar(point.getId());
+        removeCaptureBossBar(pointId);
         
         // Remove the beacon
         removeBeacon(point);
@@ -1564,10 +1591,10 @@ extends JavaPlugin {
         }
         
         // Stop the capture session
-        stopCapture(point.getId());
+        stopCapture(pointId);
         
         // Cancel the capture task
-        BukkitTask task = captureTasks.remove(point.getId());
+        BukkitTask task = captureTasks.remove(pointId);
         if (task != null) {
             task.cancel();
         }
@@ -1636,6 +1663,13 @@ extends JavaPlugin {
         
         this.removeBeacon(point);
         this.removeCaptureBossBar(pointId);
+
+        // Cancel any scheduled preparation/capture tasks
+        BukkitTask scheduled = this.captureTasks.remove(pointId);
+        if (scheduled != null && !scheduled.isCancelled()) {
+            scheduled.cancel();
+        }
+
         this.activeSessions.remove(pointId);
         String message = Messages.get("messages.capture.admin_cancelled", Map.of(
             "town", session.getTownName(),
@@ -1792,6 +1826,15 @@ extends JavaPlugin {
         
         // Remove beacon if exists
         removeBeacon(point);
+
+        // Cancel any lingering scheduled tasks (preparation/capture)
+        BukkitTask scheduled = captureTasks.remove(pointId);
+        if (scheduled != null && !scheduled.isCancelled()) {
+            scheduled.cancel();
+        }
+
+        // Ensure boss bar is removed if present
+        removeCaptureBossBar(pointId);
         
         // Clean up boundary visualization tasks for this zone
         boundaryTasks.entrySet().removeIf(entry -> {

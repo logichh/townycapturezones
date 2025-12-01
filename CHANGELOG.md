@@ -1,5 +1,15 @@
 # TownyCapture - Change Log
 
+## Version 1.0.8 - [2025-12-02]
+
+### Fixed
+- **Critical**: Fixed post-deletion capture completion spam. Deleting a zone during an active capture session no longer triggers "no town was found" warnings or completion callbacks.
+- Added defensive guards in `completeCapture()` to prevent execution if the capture point has been removed from the registry.
+- Zone deletion and capture stopping now properly cancel all scheduled tasks (preparation/capture timers) and remove boss bars to ensure clean state.
+
+### Added
+- **Startup Banner**: Added ASCII art banner displaying "TOWNY CAPTURE" on server startup with version and author information.
+
 ## Version 1.0.7 - [2025]
 
 ### Changed
@@ -166,7 +176,7 @@ A unified toggle to control ALL plugin notifications (boss bars, sounds, message
 **Command:**
 ```
 /capturepoint notifications
-/cp notifications
+/cap notifications
 /capturepoint silence  # Alias
 ```
 
@@ -177,8 +187,8 @@ A unified toggle to control ALL plugin notifications (boss bars, sounds, message
 
 **Usage:**
 1. Start with notifications ON by default
-2. Run `/cp notifications` to disable all TownyCapture notifications
-3. Run `/cp notifications` again to re-enable them
+2. Run `/cap notifications` to disable all TownyCapture notifications
+3. Run `/cap notifications` again to re-enable them
 4. Toggle persists across captures until server restart
 
 **Example:**
