@@ -514,60 +514,8 @@ messages:
 # ==============================================
 # Commands that are blocked while in a capture zone
 # Add or remove commands as needed
+# Example usage: 
+#  - /feed
+#  - /tpa
 blocked-commands:
-  - /feed
-  - /tpa
-  - /cmi homes
-  - /cmi home
-  - /tpahere
-  - /tpaccept
-  - /home
-  - /homes
-  - /heal
-  - /rt
-  - /rtp
-  - /wild
-  - /spawn
-  - /t spawn
-  - /town spawn
-  - /n spawn
-  - /nation spawn
-  - /ghome
-  - /spawn
-  - /ender
-  - /ah
-  - /gods
-  - /cmi ender
-  - /cmi rt
-  - /cmi feed
-  - /cmi tpa
-  - /cmi tpahere
-  - /cmi tpaccept
-  - /cmi spawn
-  - /cmi heal
-  - /cmi homes
-  - /cmi home
-  - /cmi repair
-  - /repair
-  - /cmi sethome
-  - /cmi home
-  - /cmi clear
-  - /clear
-  - /dispose
-  - /cmi dispose
-  - /cmi back
-  - /back
-  - /mod-sp
-  - /tfly
-  - /townyfly
-  - /townyflight
-  - /gmarry
-  - /gmarrygift
-  - /gmarrytp
-  - /t claim
-  - /t new
-  - /t create
-  - /n new
-  - /n create
-  - /t claim outpost
-  - /t unclaim
+

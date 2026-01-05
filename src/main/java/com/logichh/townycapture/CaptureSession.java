@@ -1,13 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Location
- *  org.bukkit.block.data.BlockData
- *  org.bukkit.boss.BossBar
- *  org.bukkit.entity.Player
- *  org.bukkit.scheduler.BukkitRunnable
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.CapturePoint;

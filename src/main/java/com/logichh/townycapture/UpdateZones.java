@@ -1,18 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.palmergames.bukkit.towny.TownyAPI
- *  com.palmergames.bukkit.towny.object.Town
- *  org.bukkit.Location
- *  org.bukkit.plugin.Plugin
- *  org.dynmap.DynmapAPI
- *  org.dynmap.markers.AreaMarker
- *  org.dynmap.markers.Marker
- *  org.dynmap.markers.MarkerAPI
- *  org.dynmap.markers.MarkerIcon
- *  org.dynmap.markers.MarkerSet
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.AreaStyle;

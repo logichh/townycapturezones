@@ -30,7 +30,7 @@
   "messages.capture.congratulations": "&a&lCongratulations! &7You have successfully captured &e{zone}&7!",
 
   "messages.reward.distributed": "&a{town} has received {reward} for controlling {zone}!",
-  "messages.reward.hourly_distributed": "&a{town} has received {reward} hourly reward for controlling {zone}!",
+  "messages.reward.hourly_distributed": "&7&l[&c&l{zone}&7&l]&r - &a{town} &7received &a${reward}&7!",
 
   "reasons.moved-too-far": "Player moved too far from capture zone",
   "reasons.all-disconnected": "All participants disconnected",

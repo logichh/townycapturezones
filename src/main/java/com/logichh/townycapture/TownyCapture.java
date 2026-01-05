@@ -1,38 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.palmergames.bukkit.towny.TownyAPI
- *  com.palmergames.bukkit.towny.object.Town
- *  org.bukkit.Bukkit
- *  org.bukkit.Location
- *  org.bukkit.Material
- *  org.bukkit.World
- *  org.bukkit.block.Block
- *  org.bukkit.block.data.BlockData
- *  org.bukkit.boss.BarColor
- *  org.bukkit.boss.BarFlag
- *  org.bukkit.boss.BarStyle
- *  org.bukkit.boss.BossBar
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.PluginCommand
- *  org.bukkit.command.TabCompleter
- *  org.bukkit.configuration.ConfigurationSection
- *  org.bukkit.configuration.file.FileConfiguration
- *  org.bukkit.configuration.file.YamlConfiguration
- *  org.bukkit.entity.Player
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- *  org.bukkit.event.player.PlayerJoinEvent
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.plugin.java.JavaPlugin
- *  org.bukkit.scheduler.BukkitTask
- *  org.dynmap.DynmapAPI
- *  org.dynmap.markers.AreaMarker
- *  org.dynmap.markers.MarkerAPI
- *  org.dynmap.markers.MarkerSet
- *  org.dynmap.markers.Marker
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.AreaStyle;

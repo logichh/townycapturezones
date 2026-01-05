@@ -1,11 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.configuration.file.FileConfiguration
- *  org.dynmap.markers.MarkerAPI
- *  org.dynmap.markers.MarkerIcon
- */
 package com.logichh.townycapture;
 
 import java.awt.Color;

@@ -1,13 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.palmergames.bukkit.towny.TownyAPI
- *  com.palmergames.bukkit.towny.object.Town
- *  org.bukkit.configuration.file.FileConfiguration
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.plugin.java.JavaPlugin
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.CapturePoint;

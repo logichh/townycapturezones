@@ -1,11 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.palmergames.bukkit.towny.event.NewDayEvent
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.TownyCapture;

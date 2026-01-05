@@ -1,20 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.palmergames.bukkit.towny.TownyAPI
- *  com.palmergames.bukkit.towny.object.Resident
- *  org.bukkit.Bukkit
- *  org.bukkit.Location
- *  org.bukkit.command.CommandSender
- *  org.bukkit.entity.Player
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- *  org.bukkit.event.player.PlayerMoveEvent
- *  org.bukkit.event.player.PlayerQuitEvent
- *  org.bukkit.metadata.MetadataValue
- *  org.bukkit.plugin.Plugin
- */
 package com.logichh.townycapture;
 
 import com.logichh.townycapture.CapturePoint;
