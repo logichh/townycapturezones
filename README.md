@@ -428,6 +428,8 @@ mvn clean package
 
 The compiled JAR will be in the `target` directory.
 
+https://bstats.org/signatures/bukkit/Capture%20Points.svg
+
 ## Requirements
 
 - Java 17 or higher
