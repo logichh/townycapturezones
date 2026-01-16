@@ -1,5 +1,8 @@
 # TownyCapture
 
+Everything in this README file applies to versions 1.1.0 and above
+Versions 1.0.8.1 and below are now considered LEGACY and i do not support any support on them, please update your plugin!
+
 A Minecraft plugin that adds capturable points for towns in Towny, creating dynamic territorial control mechanics.
 
 ## Description
