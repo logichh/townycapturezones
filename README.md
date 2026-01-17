@@ -360,13 +360,13 @@ The Dynmap infowindow supports placeholders such as `%control_status%`, `%contro
 **New in v1.0.11**: Each capture zone can now have its own dedicated configuration file!
 
 ### Overview
-- **Global Config**: `config.yml` contains plugin-wide settings and the `zone-defaults` template
+- **Global Config**: `config.yml` contains plugin-wide settings and the `zone-template.yml` contains template
 - **Zone Configs**: Each zone gets its own `{zone_id}_config.yml` with complete settings
 - **Auto-Generation**: Zone configs are automatically created when you create a zone
 - **Migration**: Existing zones are automatically migrated on first load
 
 ### How It Works
-1. When you create a zone with `/cap create`, the plugin generates `{zone_id}_config.yml` from the `zone-defaults` template in `config.yml`
+1. When you create a zone with `/cap create`, the plugin generates `{zone_id}_config.yml` from the `zone-template.yml` template.
 2. Each zone config contains all zone-specific settings: rewards, reinforcements, capture mechanics, etc.
 3. Modify a zone config to customize that zone without affecting others
 4. If a zone config is missing, the plugin falls back to `zone-defaults`
@@ -442,7 +442,7 @@ Logichh - Milin (Discord: milin001)
 
 ## Support
 
-Discord support server: https://discord.gg/t96nrf7Nav
-Support my work on patreon: https://www.patreon.com/cw/logich
-Become a github sponsor to show support: https://github.com/sponsors/logichh
-Visit wiki for more help: https://github.com/logichh/townycapturezones/wiki
+- Discord support server: https://discord.gg/t96nrf7Nav
+- Support my work on patreon: https://www.patreon.com/cw/logich
+- Become a github sponsor to show support: https://github.com/sponsors/logichh
+- Visit wiki for more help: https://github.com/logichh/townycapturezones/wiki
