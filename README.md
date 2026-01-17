@@ -130,6 +130,7 @@ Configuration is located in `plugins/TownyCapture/config.yml`. The config file a
 - Per-zone configurations via `zone-defaults` template
 
 Key set# Discord webhook integration
+```yaml
 discord:
   enabled: false
   webhook-url: "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
@@ -153,7 +154,7 @@ discord:
     new-records: false
     milestones: false
 
-```yaml
+
 boundary-visuals:
   mode: "ON" # ON, REDUCED, OFF
 
