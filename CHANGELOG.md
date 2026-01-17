@@ -1,5 +1,22 @@
 # TownyCapture - Change Log
 
+## Version 1.1.0 hotfix - [2026-01-17]
+
+### Fixed
+
+#### 🔧 Zone Protection System
+Fixed ZoneProtectionListener to properly use per-zone configuration instead of global config.
+
+**Issue:** The protection listener was reading `protection.*` settings from the main config.yml instead of zone-specific configs, causing per-zone protection settings to be ignored.
+
+**Fixed:**
+- All protection event handlers now check zone-specific configs via `ZoneConfigManager`
+- Added `getZoneIdAtLocation()` helper method to identify which zone a location is in
+- Protection settings now properly respect per-zone `protection.prevent-item-use`, `prevent-block-break`, `prevent-block-place`, `prevent-explosions`, `prevent-pvp`, `prevent-teleporting`, `prevent-homes`, and `prevent-claiming`
+- Buffer zone size now reads from per-zone configs instead of global config
+
+**Impact:** Players can now have different protection rules per zone. For example, one zone can allow item use (`prevent-item-use: false`) while another blocks it.
+
 ## Version 1.1.0 - [2026-01-16]
 
 ### Wiki

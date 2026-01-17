@@ -15,8 +15,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
-public class ZoneProtectionListener
-implements Listener {
+public class ZoneProtectionListener implements Listener {
     private final TownyCapture plugin;
 
     public ZoneProtectionListener(TownyCapture plugin) {
@@ -25,99 +24,105 @@ implements Listener {
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-block-break", true)) {
-            return;
-        }
         if (event == null || event.getPlayer() == null || event.getBlock() == null) {
             return;
         }
         if (event.getPlayer().isOp()) {
             return;
         }
-        if (this.isInProtectedZone(event.getBlock().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-break-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getBlock().getLocation());
+        if (zoneId != null) {
+            boolean preventBreak = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-block-break", true);
+            if (preventBreak) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-break-blocked"));
+            }
         }
     }
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-block-place", true)) {
-            return;
-        }
         if (event == null || event.getPlayer() == null || event.getBlock() == null) {
             return;
         }
         if (event.getPlayer().isOp()) {
             return;
         }
-        if (this.isInProtectedZone(event.getBlock().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-place-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getBlock().getLocation());
+        if (zoneId != null) {
+            boolean preventPlace = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-block-place", true);
+            if (preventPlace) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-place-blocked"));
+            }
         }
     }
 
     @EventHandler
     public void onEntityExplode(EntityExplodeEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-explosions", true)) {
-            return;
-        }
         if (event == null || event.getLocation() == null) {
             return;
         }
-        if (this.isInProtectedZone(event.getLocation())) {
-            event.setCancelled(true);
+        String zoneId = getZoneIdAtLocation(event.getLocation());
+        if (zoneId != null) {
+            boolean preventExplosions = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-explosions", true);
+            if (preventExplosions) {
+                event.setCancelled(true);
+            }
         }
     }
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-pvp", false)) {
-            return;
-        }
         if (event == null || event.getEntity() == null || event.getDamager() == null) {
             return;
         }
         if (!(event.getEntity() instanceof Player) || !(event.getDamager() instanceof Player)) {
             return;
         }
-        if (this.isInProtectedZone(event.getEntity().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification((Player) event.getDamager(), Messages.get("protection.pvp-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getEntity().getLocation());
+        if (zoneId != null) {
+            boolean preventPvp = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-pvp", false);
+            if (preventPvp) {
+                event.setCancelled(true);
+                plugin.sendNotification((Player) event.getDamager(), Messages.get("protection.pvp-blocked"));
+            }
         }
     }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-item-use", true)) {
-            return;
-        }
         if (event == null || event.getPlayer() == null) {
             return;
         }
         if (event.getPlayer().isOp()) {
             return;
         }
-        if (this.isInProtectedZone(event.getPlayer().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.item-use-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getPlayer().getLocation());
+        if (zoneId != null) {
+            boolean preventItemUse = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-item-use", true);
+            if (preventItemUse) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.item-use-blocked"));
+            }
         }
     }
 
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        if (!this.plugin.getConfig().getBoolean("protection.prevent-teleporting", true)) {
-            return;
-        }
         if (event == null || event.getPlayer() == null || event.getTo() == null) {
             return;
         }
         if (event.getPlayer().isOp()) {
             return;
         }
-        if (this.isInProtectedZone(event.getTo())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.teleport-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getTo());
+        if (zoneId != null) {
+            boolean preventTeleporting = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-teleporting", true);
+            if (preventTeleporting) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.teleport-blocked"));
+            }
         }
     }
 
@@ -129,14 +134,22 @@ implements Listener {
         if (event.getPlayer().isOp()) {
             return;
         }
-        String command = event.getMessage().toLowerCase();
-        if (this.plugin.getConfig().getBoolean("protection.prevent-homes", true) && (command.startsWith("/home") || command.startsWith("/homes") || command.startsWith("/sethome") || command.startsWith("/delhome")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.home-blocked"));
-        }
-        if (this.plugin.getConfig().getBoolean("protection.prevent-claiming", true) && (command.startsWith("/t claim") || command.startsWith("/town claim") || command.startsWith("/n claim") || command.startsWith("/nation claim")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
-            event.setCancelled(true);
-            plugin.sendNotification(event.getPlayer(), Messages.get("protection.claiming-blocked"));
+        String zoneId = getZoneIdAtLocation(event.getPlayer().getLocation());
+        if (zoneId != null) {
+            String command = event.getMessage().toLowerCase();
+            
+            boolean preventHomes = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-homes", true);
+            if (preventHomes && (command.startsWith("/home") || command.startsWith("/homes") || command.startsWith("/sethome") || command.startsWith("/delhome"))) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.home-blocked"));
+                return;
+            }
+            
+            boolean preventClaiming = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-claiming", true);
+            if (preventClaiming && (command.startsWith("/t claim") || command.startsWith("/town claim") || command.startsWith("/n claim") || command.startsWith("/nation claim"))) {
+                event.setCancelled(true);
+                plugin.sendNotification(event.getPlayer(), Messages.get("protection.claiming-blocked"));
+            }
         }
     }
 
@@ -164,17 +177,31 @@ implements Listener {
         // All other spawn reasons (including CUSTOM for reinforcement mobs) are allowed
     }
 
-    private boolean isInProtectedZone(Location location) {
-        int bufferSize = this.plugin.getConfig().getBoolean("protection.buffer-zone.enabled", true) ? this.plugin.getConfig().getInt("protection.buffer-zone.size", 1) : 0;
+    /**
+     * Get the zone ID for a location, or null if not in a zone
+     */
+    private String getZoneIdAtLocation(Location location) {
         for (CapturePoint point : this.plugin.getCapturePoints().values()) {
+            // Get buffer size from zone-specific config
+            boolean bufferEnabled = (boolean) plugin.getZoneConfigManager().getZoneSetting(point.getId(), "protection.buffer-zone.enabled", true);
+            int bufferSize = bufferEnabled ? ((Number) plugin.getZoneConfigManager().getZoneSetting(point.getId(), "protection.buffer-zone.size", 1)).intValue() : 0;
+            
             // Calculate actual block distance for circular zones
             double blockDistance = this.plugin.getChunkDistance(point.getLocation(), location) * 16;
             int blockRadius = (point.getChunkRadius() + bufferSize) * 16;
             
             if (blockDistance <= blockRadius) {
-                return true;
+                return point.getId();
             }
         }
-        return false;
+        return null;
+    }
+    
+    /**
+     * @deprecated Use getZoneIdAtLocation instead for per-zone config support
+     */
+    @Deprecated
+    private boolean isInProtectedZone(Location location) {
+        return getZoneIdAtLocation(location) != null;
     }
 }
