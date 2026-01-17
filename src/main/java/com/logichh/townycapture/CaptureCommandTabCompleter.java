@@ -66,6 +66,11 @@ implements TabCompleter {
                 subCommands.add("test");
                 subCommands.add("testall");
             }
+            if (player.hasPermission("capturepoints.admin.zoneconfig")) {
+                subCommands.add("zoneconfig");
+            }
+            subCommands.add("stats");
+            subCommands.add("shop");
             return this.filterCompletions(subCommands, args[0]);
         }
         switch (args[0].toLowerCase()) {
@@ -121,6 +126,43 @@ implements TabCompleter {
                 }
                 if (args.length != 5) break;
                 return this.filterCompletions(List.of("100", "500", "1000", "5000"), args[4]);
+            }
+            case "stats": {
+                if (!player.hasPermission("capturepoints.admin.stats") || args.length != 2) break;
+                return this.filterCompletions(List.of("remove", "reset"), args[1]);
+            }
+            case "zoneconfig": {
+                if (!player.hasPermission("capturepoints.admin.zoneconfig")) break;
+                if (args.length == 2) {
+                    return this.filterCompletions(new ArrayList<String>(this.plugin.getCapturePoints().keySet()), args[1]);
+                }
+                if (args.length == 3) {
+                    return this.filterCompletions(List.of("set", "reset", "reload"), args[2]);
+                }
+                if (args.length == 4 && args[2].equalsIgnoreCase("set")) {
+                    return this.filterCompletions(List.of("rewards.hourly-mode", "reinforcements.enabled", "reinforcements.mobs-per-wave"), args[3]);
+                }
+                break;
+            }
+            case "shop": {
+                if (args.length == 2) {
+                    List<String> shopCommands = new ArrayList<>();
+                    if (player.hasPermission("capturepoints.admin.shop")) {
+                        shopCommands.add("edit");
+                        shopCommands.add("reload");
+                        shopCommands.add("enable");
+                        shopCommands.add("disable");
+                    }
+                    if (player.hasPermission("capturepoints.admin.shop.restock")) {
+                        shopCommands.add("restock");
+                    }
+                    return this.filterCompletions(shopCommands, args[1]);
+                }
+                if (args.length == 3) {
+                    // Zone ID completions for shop subcommands
+                    return this.filterCompletions(new ArrayList<String>(this.plugin.getCapturePoints().keySet()), args[2]);
+                }
+                break;
             }
         }
         return completions;

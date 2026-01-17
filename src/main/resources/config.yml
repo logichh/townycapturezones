@@ -1,52 +1,51 @@
 # ==============================================
 # TownyCapture Configuration
-# Author: LogicHH
+# Author: Logichh (Milin)
 # Discord: @milin001
-# Website: conquerearthmc.com
-# Version: 1.0.6
+# Discord support server: https://discord.gg/t96nrf7Nav
+# Version: 1.1.0
 # ==============================================
 # 
-# This configuration file contains all settings for TownyCapture.
-# Please read through all options carefully before making changes.
-# Any changes require a server restart or /capturepoint reload
-# Item payouts are not yet supported in this version.
+# This configuration file contains GLOBAL plugin settings.
+# Zone defaults live in zone-template.yml and are copied into zones/{zone_id}_config.yml.
+# Customize per-zone settings in the generated zone config files.
+#
 # ==============================================
 
-# Core Settings
-# ==============================================
+# ══════════════════════════════════════════════
+# GLOBAL PLUGIN SETTINGS
+# These settings apply to the entire plugin
+# ══════════════════════════════════════════════
+
 settings:
-  # Whether to show capture-related chat messages
+  # Whether to show capture-related chat messages globally
   show-chat-messages: true
   
-  # Minimum number of players online to allow capturing
-  # This helps prevent captures when the server is empty
+  # Minimum number of players online to allow capturing (server-wide)
   min-online-players: 1
 
   # Automatically show capture zone boundaries to players
   auto-show-boundaries: true
   
+  # Check for plugin updates from Modrinth
+  check-for-updates: true
+  
   # Session timeout in milliseconds (default: 1 hour)
-  # How long a capture session can be inactive before being cancelled
   session-timeout: 3600000
   
-  # Error throttle duration in milliseconds (default: 1 minute)
-  # Prevents spam of error messages for the same issue
+  # Error throttle duration in milliseconds
   error-throttle-ms: 60000
   
   # Debug mode for detailed logging
-  # Enable this to see detailed debug messages in console
   debug-mode: false
   
-  # Auto-save interval in seconds (default: 5 minutes)
-  # How often to save capture point data
+  # Auto-save interval in seconds
   auto-save-interval: 300
   
   # Maximum number of capture points allowed
-  # Set to 0 for unlimited points
   max-capture-points: 50
   
   # Maximum number of active captures allowed
-  # Set to 0 for unlimited captures
   max-active-captures: 10
   
   # Active language for messages (default: "en")
@@ -56,8 +55,7 @@ settings:
   # copy the contents of en.json, translate the values, and set language to match the filename (without .json)
   language: "en"
 
-# Boundary Visualization (particles)
-# ON = current density, REDUCED = lighter load, OFF = no particles or tasks
+# Global boundary visualization settings
 boundary-visuals:
   mode: "OFF" # ON, REDUCED, OFF
   on:
@@ -75,447 +73,239 @@ boundary-visuals:
       min: -2
       max: 20
 
-# Capture Mechanics
-# ==============================================
-capture:
-  # Time settings (in minutes)
-  preparation:
-    # Time in minutes for preparation phase
-    duration: 1
-    # Whether to show countdown during preparation
-    show-countdown: true
-    # Whether to allow PvP during preparation
-    allow-pvp: true
-  # Time settings (in minutes)
-  capture:
-    # Time in minutes for capture phase
-    duration: 15
-    # Whether to show countdown during capture
-    show-countdown: true
-    # Whether to allow PvP during capture
-    allow-pvp: true
-    # Whether to allow block breaking during capture
-    allow-block-break: false
-    # Whether to allow block placing during capture
-    allow-block-place: false
-    # Whether to allow item use during capture
-    allow-item-use: true
-    # Whether to allow explosions during capture
-    allow-explosions: false
-    # Whether to allow teleporting during capture
-    allow-teleport: false
-    # Whether to allow claiming during capture
-    allow-claiming: false
-    # Whether to allow setting homes during capture
-    allow-homes: false
-  # Whether to allow using commands during capture
-  allow-commands: false
-
-# Sound Settings
-# ==============================================
+# Global sound settings
 sounds:
-  # Enable/disable all capture sounds
   enabled: true
-  
-  # Sound effects for different capture events
   capture-started:
     sound: "entity.wither.ambient"
     volume: 1.0
     pitch: 1.2
-    
   capture-progress:
     sound: "block.note_block.pling"
     volume: 0.8
     pitch: 1.0
-    
   capture-phase-started:
     sound: "entity.wither.spawn"
     volume: 1.2
     pitch: 1.0
-    
   capture-complete:
     sound: "entity.player.levelup"
     volume: 1.5
     pitch: 1.2
-    
   capture-failed:
     sound: "entity.ender_dragon.death"
     volume: 1.0
     pitch: 0.8
-    
   point-reset:
     sound: "entity.experience_orb.pickup"
     volume: 1.0
     pitch: 1.0
 
-# Mob Reinforcement Settings
-# ==============================================
-reinforcements:
-  # Enable mob reinforcements during capture
+# Global statistics settings
+statistics:
   enabled: true
-  
-  spawn-rate:
-    # Maximum mobs spawned from reinforcements per tick (rate limiter)
-    max-per-tick: 3
-  
-  # Number of mobs to spawn per wave
-  mobs-per-wave: 1
-  
-  # Time between reinforcement waves (in seconds)
-  wave-interval: 30
-  
-  # Maximum number of reinforcements per capture point
-  # Note: With phased spawning, this can accumulate over time
-  max-mobs-per-point: 50
-  
-  # Mob types that can spawn (with hat items for daylight)
-  # WARNING: Do not include ENDER_DRAGON, it's too powerful and will break things
-  mob-types:
-    - "ZOMBIE"
-    - "SKELETON"
-    - "WITHER_SKELETON"
-    - "STRAY"
-    - "HUSK"
-    - "ZOMBIE_VILLAGER"
-    - "SPIDER"
-    - "CAVE_SPIDER"
-    - "PILLAGER"
-    - "BOGGED"
- 
-  
-  # Hat items (worn by mobs to prevent burning in sunlight)
-  # Golden helmets needed for nether mobs (blaze, magma cube, etc.)
-  hat-items:
-    - "LEATHER_HELMET"
-    - "IRON_HELMET"
-    - "GOLDEN_HELMET"
-    - "CHAINMAIL_HELMET"
+  auto-save-interval: 300
+  command-cooldown: 300
 
-# Weekly reset of capture points
-weekly-reset:
-  enabled: true
-  day: FRIDAY        # Day of the week for resets
-  time: "00:00"      # 24h time when reset should run
-  first-capture-bonus:
-    enabled: true
-    amount-range:
-      min: 500
-      max: 1500
+# ══════════════════════════════════════════════
+# DISCORD WEBHOOK INTEGRATION
+# Send capture alerts and events to Discord
+# ══════════════════════════════════════════════
+discord:
+  # Enable Discord webhook notifications
+  enabled: false
+  
+  # Your Discord webhook URL
+  # Get this from Discord: Server Settings → Integrations → Webhooks → New Webhook
+  webhook-url: "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+  
+  # Use rich embeds (true) or plain text messages (false)
+  use-embeds: true
+  
+  # Optional: Mention a role for important events (format: <@&ROLE_ID> or leave empty)
+  # You can also use the raw role ID (e.g., "123456789") and it will be formatted automatically.
+  # Example: "<@&123456789>" or "123456789" or "" for no mentions
+  mention-role: ""
+  
+  # Show coordinates in alerts
+  show-coordinates: true
+  
+  # Show reward amounts in alerts (hide for privacy if needed)
+  show-rewards-amount: true
+  
+  # Per-zone rate limit in milliseconds (prevents spam)
+  rate-limit-ms: 1000
 
-# Capture Point Settings
-# ==============================================
-capture-point:
-  # Minimum radius in chunks (1 chunk = 16 blocks)
-  min-radius: 1
+  # Embed styling (optional)
+  embed:
+    # Placeholders: {server}, {plugin}, {version}
+    author-name: "TownyCapture"
+    author-icon: ""
+    footer-text: "TownyCapture"
+    footer-icon: ""
+    thumbnail-url: ""
+    show-timestamp: true
   
-  # Maximum radius in chunks
-  max-radius: 10
-  
-  # Minimum reward amount in server currency
-  min-reward: 100.0
-  
-  # Maximum reward amount in server currency
-  max-reward: 10000.0
-  
-  # Minimum cooldown in milliseconds (default: 1 hour)
-  # Time before a point can be captured again
-  min-cooldown: 3600000
-  
-  # Maximum cooldown in milliseconds (default: 24 hours)
-  max-cooldown: 86400000
-  
-  # Minimum players required per point
-  min-players: 1
-  
-  # Maximum players allowed per point
-  max-players: 10
-
-# Capture Conditions
-# ==============================================
-capture-conditions:
-  # Time restrictions (24-hour format)
-  allowed-hours:
-    start: 0  # 12 AM
-    end: 24   # 12 AM (24 = no end time)
-  
-  # Weather restrictions
-  allow-capture-in-rain: true
-  allow-capture-in-storm: true
-
-  # Prevent towns from recapturing zones they already control
-  prevent-self-capture: true
-
-  # Cooldown after a successful capture before the point can be contested again (in milliseconds)
-  capture-cooldown:
-    enabled: true
-    duration-ms: 300000
-  
-  # Anti-exploit settings
-  anti-exploit:
-    # Minimum distance between capture points (in chunks)
-    min-point-distance: 10
-    # Minimum time between captures by same town (in hours)
-    min-town-capture-cooldown: 24
-    # Whether to allow captures during server events
-    allow-capture-during-events: false
-
-# Reward Settings
-# ==============================================
-rewards:
-  # Reward distribution type: "daily" or "hourly"
-  # Daily: Rewards given once per Towny day to controlling towns
-  # Hourly: Rewards given every hour proportional to holding time (daily_reward / 24 per hour)
-  reward-type: "hourly"
-
-  # Hourly reward calculation mode
-  # STATIC = same amount every interval (default behavior)
-  # DYNAMIC = random amount in configured range each interval
-  hourly-mode: "STATIC"
-  hourly-dynamic:
-    min: 50
-    max: 100
-  
-  # Hourly reward interval in seconds (default: 3600 = 1 hour)
-  # Only used when reward-type is "hourly"
-  # Minimum: 1 second
-  hourly-interval: 3600
-  
-  # Item rewards for capture points
-  item-payouts:
-    default: None
-    oil: 64x Bucket Of Oil
-    diamonds: 16x Diamond
-    emeralds: 32x Emerald
-
-# Protection Settings
-# ==============================================
-protection:
-  # Whether to prevent claiming inside capture zones
-  prevent-claiming: true
-  
-  # Whether to prevent setting homes inside capture zones
-  prevent-homes: true
-  
-  # Whether to prevent teleporting inside capture zones
-  prevent-teleporting: true
-  
-  # Whether to prevent using items inside capture zones
-  prevent-item-use: false
-  
-  # Whether to prevent breaking blocks inside capture zones
-  prevent-block-break: true
-  
-  # Whether to prevent placing blocks inside capture zones
-  prevent-block-place: true
-  
-  # Whether to prevent explosions inside capture zones
-  prevent-explosions: true
-  
-  # Whether to prevent PvP inside capture zones
-  prevent-pvp: false
-  
-  # Buffer zone settings (in chunks)
-  buffer-zone:
-    # Whether to apply protection to buffer zones
-    enabled: true
-    # Size of buffer zone in chunks
-    size: 1
+  # Individual alert toggles - enable/disable specific event notifications
+  alerts:
+    # Core capture events
+    capture-started: true          # When a town begins capturing
+    capture-completed: true        # When a capture succeeds
+    capture-failed: true           # When a capture fails
+    capture-cancelled: true        # When a capture is cancelled (with reason)
     
-  # Messages for protection violations
-  messages:
-    claiming-blocked: '&cYou cannot claim land in capture zones!'
-    home-blocked: '&cYou cannot set homes in capture zones!'
-    teleport-blocked: '&cYou cannot teleport in capture zones!'
-    item-use-blocked: '&cYou cannot use items in capture zones!'
-    block-break-blocked: '&cYou cannot break blocks in capture zones!'
-    block-place-blocked: '&cYou cannot place blocks in capture zones!'
-    explosion-blocked: '&cExplosions are not allowed in capture zones!'
-    pvp-blocked: '&cPvP is not allowed in capture zones!'
+    # Reward events
+    rewards-distributed: true      # When hourly/daily rewards are given
+    first-capture-bonus: true      # First capture after weekly reset
+    
+    # Combat/gameplay events
+    reinforcement-phases: false    # When defenders spawn (can be spammy!)
+    player-death: true             # Deaths during captures
+    
+    # Admin/management events
+    zone-created: true             # When zones are created
+    zone-deleted: true             # When zones are deleted
+    weekly-reset: true             # Weekly neutralization event
+    
+    # Optional statistics events
+    new-records: false             # When server records are broken
+    milestones: false              # Capture count milestones (10, 50, 100, etc.)
 
-# WorldGuard Integration
-# ==============================================
-worldguard:
-  # Whether to prevent damage to structures in capture zones
-  prevent_damage: true
-  # Whether to prevent TNT explosions in capture zones
-  prevent_explosions: true
-  # Whether players can use items in capture zones
-  allow_item_use: true
+# Global anti-exploit settings
+anti-exploit:
+  min-point-distance: 10
+  min-town-capture-cooldown: 24
+  allow-capture-during-events: false
 
-# Dynmap Integration
-# ==============================================
+# ══════════════════════════════════════════════
+# ZONE SHOP SYSTEM
+# Per-zone player shops with economy integration
+# ══════════════════════════════════════════════
+shops:
+  # Global toggle - enable/disable entire shop system
+  enabled: false
+  
+  # Default settings for new shops (applied when creating via editor)
+  defaults:
+    # Who can access the shop
+    # ALWAYS: Anyone can use
+    # CONTROLLED_ONLY: Only players from towns controlling the zone
+    # OWNER_ONLY: Only the controlling town can use it
+    access-mode: "ALWAYS"
+    
+    # Stock system behavior
+    # INFINITE: Items never run out
+    # LIMITED: Items restock on a schedule
+    # FINITE: Items never restock (one-time stock)
+    stock-system: "INFINITE"
+    
+    # Shop layout/organization
+    # SINGLE_PAGE: All items in one inventory (54 slots max)
+    # CATEGORIES: Items organized by category
+    # PAGINATED: Multiple pages of items
+    layout-mode: "SINGLE_PAGE"
+    
+    # Pricing behavior
+    # FIXED: Prices never change
+    # DYNAMIC: Prices adjust based on supply/demand
+    pricing-mode: "FIXED"
+    
+    # Restock schedule (only matters if stock-system is LIMITED)
+    # HOURLY: Restock every hour
+    # DAILY: Restock every 24 hours
+    # WEEKLY: Restock every 7 days
+    # MANUAL: Admin must manually restock with /cap shop restock
+    restock-schedule: "HOURLY"
+  
+  # Dynamic pricing configuration (only used if pricing-mode is DYNAMIC)
+  dynamic-pricing:
+    # How sensitive prices are to changes (0.1 = 10% variation)
+    sensitivity: 0.1
+    
+    # Price multiplier limits (0.5 = 50% min, 2.0 = 200% max of base price)
+    min-multiplier: 0.5
+    max-multiplier: 2.0
+  
+  # Optional filler items for empty slots in the shop GUI
+  # Name and lore are always blank
+  filler:
+    enabled: false
+    material: "BLACK_STAINED_GLASS_PANE"
+
+# ══════════════════════════════════════════════
+# Zone defaults are stored in zone-template.yml (copied on zone creation)
+
+# GLOBAL DYNMAP SETTINGS
+# These apply to all zones' Dynmap integration
+# ══════════════════════════════════════════════
+
 dynmap:
-  # Marker set ID and label
+  enabled: true
   marker-set: townycapture.markerset
   marker-set-label: Capture Points
-
-  # Default style for markers
-  strokeColor: '#000000'
-  strokeOpacity: 0.8
-  strokeWeight: 3
-  fillColor: '#FF0000'
-  fillOpacity: 0.35
-
-  # Center marker settings
   center-marker:
-    # Icon to use for the center marker
-    # You can use any icon from Dynmap's icon set
-    # Default icons: house, sign, flag, diamond, star, etc.
-    icon: "skull"
-    # Size of the icon (1.0 is normal size)
-    size: 1.0
-    # Whether to show the marker
     show: true
-    # Whether to show the marker label
+    icon: "skull"
     show-label: true
-    # Label format (supports placeholders)
     label-format: "%name%"
-    # Whether to show the marker in the legend
-    show-in-legend: true
-    # Legend label
-    legend-label: "Capture Point"
 
-  # Area marker settings
-  area-marker:
-    # Whether to show the area border
-    show-border: true
-    # Whether to show the area fill
-    show-fill: true
-    # Whether to show the area in the legend
-    show-in-legend: true
-    # Legend label
-    legend-label: "Capture Zone"
-    # Whether to show buffer zone
-    show-buffer: false
-    # Buffer zone color
-    buffer-color: '#FF0000'
-    # Buffer zone opacity
-    buffer-opacity: 0.2
+# ══════════════════════════════════════════════
+# GLOBAL BLUEMAP SETTINGS
+# These apply to all zones' BlueMap integration
+# ══════════════════════════════════════════════
 
-  # Info window settings
-  infowindow:
-    # Template for the info window HTML
-    template: '<div class="regioninfo">
-      <div style="font-size:120%; font-weight:bold; color:%control_color%;">%control_status% %controlling_town%</div>
-      <div style="font-size:115%; margin-top:5px;">%name%</div>
-      <div>&bull; %label_type% - %type%</div>
-      <div>&bull; %label_active%: %active_status%</div>
-      <div>&bull; %label_prep_time% - %prep_time% minutes</div>
-      <div>&bull; %label_capture_time% - %capture_time% minutes</div>
-      <div>&bull; %label_reward% - %reward%</div>
-      <div>&bull; %label_item_reward% - %item_payout%</div>
-    </div>'
-    # Placeholder value when there is no configured item payout
-    item-payout-placeholder: "None"
-    # Whether to show the info window on click
-    show-on-click: true
-    # Whether to show the info window on hover
-    show-on-hover: false
+bluemap:
+  enabled: false
+  marker-set: townycapture
+  marker-set-label: Capture Points
+  center-marker:
+    enabled: true
+    icon: "skull"
+    icon-size: 16
 
-# Messages
-# ==============================================
-messages:
-  errors:
-    only-players: '&cOnly players can use this command!'
-    not-in-town: '&cYou must be in a town to capture points!'
-    already-capturing: '&cThis point is already being captured!'
-    already-controlled: '&cYour town already controls this point!'
-    too-far: '&cYou must be near the capture point to start capturing!'
-    moved-too-far: '&cCapture cancelled! You moved too far from the capture point.'
-    not-in-any-zone: '&cYou are not in any capture zone!'
-    capture-failed: '&cFailed to start capture!'
-    id-exists: '&cA capture point with this ID already exists!'
-    invalid-number: '&cRadius and reward must be numbers!'
-    no-permission: '&cYou don''t have permission to use this command!'
-    usage-info: '&cUsage: /capturezone info <id>'
-    usage-create: '&cUsage: /capturezone create <id> <name> <radius> <reward>'
-    usage-delete: '&cUsage: /capturezone delete <id>'
-    usage-stop: '&cUsage: /capturezone stop <id> [reason]'
-    usage-forcecapture: '&cUsage: /capturezone forcecapture <id> <town>'
-    usage-reset: '&cUsage: /capturezone reset <id>'
-    usage-settype: '&cUsage: /capturezone settype <id> <type>'
-    usage-setitempayout: '&cUsage: /capturezone setitempayout <id> <payout>'
-    usage-deletezone: '&cUsage: /capturezone deletezone <id>'
-    not-enough-players: '&cAt least %minplayers% players must be online to start a capture!'
-    already-controlled-by-nation: '&cThis point is already controlled by a town in your nation!'
-    already-controlled-by-ally: '&cThis point is already controlled by a town in an allied nation!'
-    command-blocked: '&cThat command is blocked in this capture zone!'
-    invulnerable-capturing: '&cYou cannot capture while invulnerable! Use /invulnerabilityoff to capture and fight'
-    invulnerable-pvp: '&cPvP is disabled for new players! Use /invulnerabilityoff to fight'
-    claim-blocked: '&cYou cannot claim this chunk, it would block access to the capture zone!'
+# ══════════════════════════════════════════════
+# WORLDGUARD INTEGRATION
+# ══════════════════════════════════════════════
 
-  capture:
-    start: '&c%town% &7is preparing to capture &c%point%&7!'
-    phase_change: '&c%town% &7has completed preparation and is now capturing &c%point%&7!'
-    progress: '&c%town% &7will capture &c%point% &7in &c%time% minutes!'
-    complete: '&c%town% &7has captured &c%point%&7!'
-    cancelled: '&c%town%''s &7capture of &c%point% &7has been cancelled!'
-    admin_cancelled: '&c%town%''s &7capture of &c%point% &7has been cancelled by an admin!'
-    death_victim: '&7Your capture of &c%point% &7has been cancelled because you were defeated by &c%killer%!'
-    death_killer: '&7You have defeated &c%victim% &7and stopped their capture of &c%point%&7!'
-    start-success: '&7Attempting to capture a zone!'
-    death_broadcast: '&c%town%''s capture of %point% has been cancelled! %victim% was defeated by &c%killer%!'
-    started: '&a%town% has started capturing %point%!'
-    phase_started: '&c%town% has entered the capture phase for %point%!'
-    reset: '&cCapture point %point% has been reset!'
+worldguard:
+  prevent_damage: true
+  prevent_explosions: true
+  allow_item_use: true
 
-  zone:
-    enter: '&c☠ &c&lYOU ARE ENTERING THE CAPTURE ZONE %zone% &c☠'
-    leave: '&c☠ &c&lYOU ARE LEAVING THE CAPTURE ZONE %zone% &c☠'
-    continuous: '&c⚠ &c&lYOU ARE IN CAPTURE ZONE %zone% &c⚠'
-    continuous-capturing: '&c⚔ &c&l%town% IS CAPTURING %zone% &c⚔'
+# ══════════════════════════════════════════════
+# GLOBAL LIMITS AND DEFAULTS
+# ══════════════════════════════════════════════
 
-  admin:
-    force_capture: '&c%point% has been forcibly captured by %town% (Admin Action)'
-    reset_point: '&c%point% has been reset and is now unclaimed (Admin Action)'
-    type_changed: '&a%point% type changed to %type%'
-    payout_changed: '&a%point% item payout changed to %item_payout%'
+capture-point:
+  min-radius: 1
+  max-radius: 10
+  min-reward: 100.0
+  max-reward: 10000.0
+  min-cooldown: 3600000
+  max-cooldown: 86400000
+  min-players: 1
+  max-players: 10
 
-  reward:
-    distributed: '&a%town% has received %reward% for controlling %point%!'
-    hourly_distributed: '&a%town% has received %reward% hourly reward for controlling %point%!'
-    item_distributed: '&a%town% has received %item_payout% for controlling %point%!'
+# Global point type labels (This has no real purpose yet other than display)
+point_types:
+  default: Strategic Point
+  movecraft: Movecraft
+  resource: Resource Node
+  military: Military Base
 
-  help:
-    header: '&6===== CapturePoints Help ====='
-    list: '&e/capturepoint list &7- List all capture points'
-    info: '&e/capturepoint info <id> &7- Show info about a capture point'
-    capture: '&e/capturepoint capture &7- Start capturing a point in your current zone'
-    create: '&e/capturepoint create <id> <n> <radius> <reward> &7- Create a capture point'
-    delete: '&e/capturepoint delete <id> &7- Delete a capture point'
-    reload: '&e/capturepoint reload &7- Reload the plugin'
-    admin: '&e/capturepoint admin &7- Show admin commands'
+# ══════════════════════════════════════════════
+# BLOCKED COMMANDS
+# Commands blocked in all capture zones
+# Example:
+# blocked-commands:
+#   - "/home"
+#   - "/spawn"
+#   - "/tp"
+#   - "/warp"
+#   - "/tpa"
+# ══════════════════════════════════════════════
 
-  adminhelp:
-    header: '&6===== CapturePoints Admin Commands ====='
-    stop: '&e/capturepoint stop <id> [reason] &7- Stop an active capture'
-    forcecapture: '&e/capturepoint forcecapture <id> <town> &7- Force a town to capture a point'
-    reset: '&e/capturepoint reset <id> &7- Reset a point to unclaimed state'
-    settype: '&e/capturepoint settype <id> <type> &7- Set a point''s type'
-    types: '&e/capturepoint types &7- List available point types'
-    setitempayout: '&e/capturepoint setitempayout <id> <payout> &7- Set a point''s item payout'
-    payouts: '&e/capturepoint payouts &7- List available item payouts'
-    deletezone: '&e/capturepoint deletezone <id> &7- Delete a capture zone'
-    reload: '&e/capturepoint reload &7- Reload the plugin configuration'
+blocked-commands: []
 
-  integrations:
-    header: '&6===== Integrations ====='
-    dynmap: '&eDynmap: %dynmap%'
-    worldguard: '&eWorldGuard: %worldguard%'
-
-  warnings:
-    approaching_edge: '&c⚠ Warning: You are approaching the edge of the capture zone! If you leave, the capture will be cancelled.'
-
-  bossbar:
-    preparation: '&ePreparing to capture: %point% - %time%'
-    capture: '&c%town% is capturing %point% - %time%'
-
-# Blocked Commands
-# ==============================================
-# Commands that are blocked while in a capture zone
-# Add or remove commands as needed
-# Example usage: 
-#  - /feed
-#  - /tpa
-blocked-commands:
-
+# ══════════════════════════════════════════════
+# END OF CONFIGURATION FILE

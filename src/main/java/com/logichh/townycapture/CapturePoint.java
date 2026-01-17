@@ -18,7 +18,7 @@ public class CapturePoint {
     private boolean showOnMap = true;
     private String color = "#8B0000"; // Dark red instead of bright red
     private String lastCapturingTown = "";
-    private int minPlayers = 1;
+     private int minPlayers = 1;
     private int maxPlayers = 10;
     private boolean active = true;
     private long captureTime = 1800000L; // 30 minutes in milliseconds

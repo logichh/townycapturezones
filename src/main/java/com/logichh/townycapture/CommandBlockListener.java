@@ -33,12 +33,12 @@ implements Listener {
                 if (!message.startsWith(blockedCommand.toLowerCase())) continue;
                 event.setCancelled(true);
                 String zone = isInCaptureZone ? "capture zone" : "buffer zone";
-                player.sendMessage(Messages.get("messages.command-blocked", Map.of("zone", zone)));
+                plugin.sendNotification(player, Messages.get("messages.command-blocked", Map.of("zone", zone)));
                 return;
             }
             if (!isInBufferZone || !message.startsWith("/t new") && !message.startsWith("/t claim") && !message.startsWith("/town new") && !message.startsWith("/town claim")) continue;
             event.setCancelled(true);
-            player.sendMessage(Messages.get("messages.claiming-blocked"));
+            plugin.sendNotification(player, Messages.get("messages.claiming-blocked"));
             return;
         }
     }

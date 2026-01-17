@@ -18,6 +18,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 
 public class CaptureEvents
 implements Listener {
@@ -65,13 +67,13 @@ implements Listener {
             // Buffer zone messages
             if (!wasInBuffer && isInBuffer) {
                 enteredBuffer = true;
-                player.sendMessage(Messages.get("messages.zone.approaching", Map.of("zone", point.getName())));
+                this.plugin.sendNotification(player, Messages.get("messages.zone.approaching", Map.of("zone", point.getName())));
             }
 
             // Capture zone messages
             if (!wasInZone && isInZone) {
                 enteredZone = point;
-                player.sendMessage(Messages.get("messages.zone.entered", Map.of("zone", point.getName())));
+                this.plugin.sendNotification(player, Messages.get("messages.zone.entered", Map.of("zone", point.getName())));
                 this.startContinuousActionBar(player, point);
                 continue;
             }
@@ -79,7 +81,7 @@ implements Listener {
             // Left zone message
             if (wasInZone && !isInZone) {
                 leftZone = point;
-                player.sendMessage(Messages.get("messages.zone.left", Map.of("zone", point.getName())));
+                this.plugin.sendNotification(player, Messages.get("messages.zone.left", Map.of("zone", point.getName())));
                 this.stopContinuousActionBar(player);
             }
         }
@@ -97,7 +99,7 @@ implements Listener {
 
             if (currentBlockDistance * 16 > blockRadius) {
                 this.plugin.cancelCapture(session.getPointId(), "Player moved too far from capture zone");
-                player.sendMessage(Messages.get("errors.moved-too-far"));
+                this.plugin.sendNotification(player, Messages.get("errors.moved-too-far"));
                 return;
             }
         }
@@ -179,9 +181,27 @@ implements Listener {
     }
 
     private void sendActionBarMessage(Player player, String message) {
+        if (this.plugin.isNotificationsDisabled(player)) {
+            return;
+        }
         String playerName = player.getName();
-        String command = "cmi actionbarmsg " + playerName + " " + this.plugin.colorize(message);
-        Bukkit.getServer().dispatchCommand((CommandSender)Bukkit.getConsoleSender(), command);
+        String colorized = this.plugin.colorize(message);
+        if (isCmiAvailable()) {
+            String command = "cmi actionbarmsg " + playerName + " " + colorized;
+            Bukkit.getServer().dispatchCommand((CommandSender)Bukkit.getConsoleSender(), command);
+            return;
+        }
+
+        try {
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(colorized));
+        } catch (NoClassDefFoundError | Exception e) {
+            // Ignore if action bar is not available; avoid spamming chat.
+        }
+    }
+
+    private boolean isCmiAvailable() {
+        Plugin cmi = this.plugin.getServer().getPluginManager().getPlugin("CMI");
+        return cmi != null && cmi.isEnabled();
     }
 
     private boolean isInvulnerable(Player player) {

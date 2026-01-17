@@ -1,9 +1,9 @@
 name: TownyCapture
-version: '1.0.8'
+version: '1.1.0'
 main: com.logichh.townycapture.TownyCapture
 api-version: '1.20'
 depend: [Towny]
-softdepend: [Dynmap, WorldGuard, PlaceholderAPI, Dynmap-Towny]
+softdepend: [Dynmap, WorldGuard, PlaceholderAPI, Dynmap-Towny, MythicMobs, BlueMap]
 authors: [LogicHH]
 description: A plugin that adds capturable points for towns in Towny
 
@@ -33,6 +33,15 @@ permissions:
       capturepoints.admin.setitempayout: true
       capturepoints.admin.timewindow: true
       capturepoints.admin.togglechat: true
+      capturepoints.admin.stats: true
+      capturepoints.admin.stats.nocooldown: true
+      capturepoints.admin.zoneconfig: true
+      capturepoints.admin.zoneconfig.set: true
+      capturepoints.admin.zoneconfig.reset: true
+      capturepoints.admin.zoneconfig.reload: true
+      capturepoints.admin.shop: true
+      capturepoints.admin.shop.restock: true
+      capturepoints.admin.update-notify: true
 
   capturepoints.admin.create:
     description: Allows creating capture points
@@ -76,4 +85,40 @@ permissions:
 
   capturepoints.admin.togglechat:
     description: Allows toggling capture chat messages
+    default: op
+
+  capturepoints.admin.stats:
+    description: Allows managing statistics (remove, reset)
+    default: op
+
+  capturepoints.admin.stats.nocooldown:
+    description: Bypasses the cooldown for /cap stats command
+    default: op
+
+  capturepoints.admin.zoneconfig:
+    description: Allows managing zone-specific configs
+    default: op
+
+  capturepoints.admin.zoneconfig.set:
+    description: Allows setting zone-specific config values
+    default: op
+
+  capturepoints.admin.zoneconfig.reset:
+    description: Allows resetting zone configs to defaults
+    default: op
+
+  capturepoints.admin.zoneconfig.reload:
+    description: Allows reloading zone configs
+    default: op
+
+  capturepoints.shop.use:
+    description: Allows using zone shops
+    default: true
+
+  capturepoints.admin.shop:
+    description: Allows managing zone shops (edit, enable/disable, reload)
+    default: op
+
+  capturepoints.admin.shop.restock:
+    description: Allows manually restocking zone shops
     default: op

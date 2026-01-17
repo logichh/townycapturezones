@@ -18,6 +18,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -46,11 +47,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
-import org.dynmap.DynmapAPI;
-import org.dynmap.markers.AreaMarker;
-import org.dynmap.markers.MarkerAPI;
-import org.dynmap.markers.MarkerSet;
-import org.dynmap.markers.Marker;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SingleLineChart;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -78,20 +74,34 @@ extends JavaPlugin {
     public Map<String, BukkitTask> boundaryTasks = Collections.synchronizedMap(new HashMap());
     public Map<UUID, Boolean> disabledNotifications = Collections.synchronizedMap(new HashMap()); // Track who has disabled notifications
     private BukkitTask hourlyRewardTask;
-    private boolean dynmapEnabled = false;
-    private DynmapAPI dynmapAPI = null;
-    private MarkerAPI markerAPI = null;
-    private MarkerSet markerSet = null;
-    private AreaStyle areaStyle;
-    private UpdateZones townUpdater;
+    private Map<String, Long> lastHourlyRewardTimes = Collections.synchronizedMap(new HashMap());
+    private List<MapProvider> mapProviders = new ArrayList<>();
+    private UpdateZones townUpdater;  // Keep for backward compatibility with Dynmap
     private boolean worldGuardEnabled = false;
     private ReinforcementListener reinforcementListener;
     private Map<String, Integer> captureAttempts = Collections.synchronizedMap(new HashMap());
     private Map<String, Integer> successfulCaptures = Collections.synchronizedMap(new HashMap());
     private Map<String, Long> lastErrorTime = Collections.synchronizedMap(new HashMap());
     private static final int ERROR_THROTTLE_MS = 60000;
-    private long lastWeeklyResetEpochDay = -1L;
+    private final Map<String, Long> lastWeeklyResetEpochDays = new HashMap<>();
     private BukkitTask weeklyResetTask;
+    
+    // Statistics system
+    private StatisticsManager statisticsManager;
+    private StatisticsGUI statisticsGUI;
+    
+    // Zone configuration manager
+    private ZoneConfigManager zoneConfigManager;
+    
+    // Discord webhook manager
+    private DiscordWebhook discordWebhook;
+    
+    // Shop system
+    private ShopManager shopManager;
+    private ShopListener shopListener;
+    
+    // Update checker
+    private UpdateChecker updateChecker;
 
     @Override
     public void onEnable() {
@@ -104,13 +114,6 @@ extends JavaPlugin {
         
         // Load config
         this.config = getConfig();
-        
-        // Debug: Log rewards section
-        if (this.config.contains("rewards")) {
-            this.getLogger().info("Rewards config section: " + this.config.getConfigurationSection("rewards").getValues(true));
-        } else {
-            this.getLogger().info("No rewards section found in config");
-        }
         
         // Create default config values if needed
         createDefaultConfig();
@@ -134,9 +137,23 @@ extends JavaPlugin {
         // Load capture points
         loadCapturePoints();
         
+        // Initialize zone configuration manager
+        zoneConfigManager = new ZoneConfigManager(this);
+        zoneConfigManager.migrateExistingZones();
+        zoneConfigManager.loadAllZoneConfigs();
+        
         // Setup integrations
-        setupDynmap();
+        setupMapProviders();
         setupWorldGuard();
+        
+        // Initialize statistics system
+        setupStatistics();
+        
+        // Initialize Discord webhook
+        discordWebhook = new DiscordWebhook(this);
+        
+        // Initialize shop system
+        setupShopSystem();
         
         // Start tasks
         startSessionTimeoutChecker();
@@ -153,6 +170,7 @@ extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new NewDayListener(this), this);
         reinforcementListener = new ReinforcementListener(this);
         getServer().getPluginManager().registerEvents(reinforcementListener, this);
+        setupMobSpawner();
         
         // Register commands
         CaptureCommands commandExecutor = new CaptureCommands(this);
@@ -199,6 +217,19 @@ extends JavaPlugin {
         // Add custom charts
         metrics.addCustomChart(new SingleLineChart("capture_points", () -> capturePoints.size()));
         metrics.addCustomChart(new SingleLineChart("active_sessions", () -> activeSessions.size()));
+        
+        // Initialize update checker and check for updates
+        if (getConfig().getBoolean("settings.check-for-updates", true)) {
+            updateChecker = new UpdateChecker(this);
+            updateChecker.checkForUpdates().thenAccept(updateAvailable -> {
+                if (updateAvailable) {
+                    getLogger().info("╔═══════════════════════════════════════════════╗");
+                    getLogger().info("║    New version available: " + updateChecker.getLatestVersion() + "              ║");
+                    getLogger().info("║    Download: modrinth.com/plugin/towny-capture-points  ║");
+                    getLogger().info("╚═══════════════════════════════════════════════╝");
+                }
+            });
+        }
     }
     
     public void autoShowBoundariesForPlayer(Player player) {
@@ -410,44 +441,9 @@ extends JavaPlugin {
                 this.getLogger().warning("Point " + point.getId() + " max players too high, setting to maximum");
                 point.setMaxPlayers(this.config.getInt("settings.capture-point.max-players", 10));
             }
-            long captureCooldown = this.config.getLong("capture-conditions.capture-cooldown.duration-ms", 300000L);
-            if (captureCooldown < 0L) {
-                this.getLogger().warning("Invalid capture cooldown, using default: 300000");
-                this.config.set("capture-conditions.capture-cooldown.duration-ms", 300000L);
-            }
-            // Validate reward settings
-            String rewardType = this.config.getString("rewards.reward-type", "daily");
-            if (!"daily".equalsIgnoreCase(rewardType) && !"hourly".equalsIgnoreCase(rewardType)) {
-                this.getLogger().warning("Invalid reward-type value '" + rewardType + "', using default: daily");
-                this.config.set("rewards.reward-type", "daily");
-            }
-            int hourlyInterval = this.config.getInt("rewards.hourly-interval", 3600);
-            if (hourlyInterval < 1) {
-                this.getLogger().warning("Invalid hourly-interval value, using default: 3600");
-                this.config.set("rewards.hourly-interval", 3600);
-            }
-            String hourlyMode = this.config.getString("rewards.hourly-mode", "STATIC");
-            if (!"STATIC".equalsIgnoreCase(hourlyMode) && !"DYNAMIC".equalsIgnoreCase(hourlyMode)) {
-                this.getLogger().warning("Invalid hourly-mode value '" + hourlyMode + "', using default: STATIC");
-                this.config.set("rewards.hourly-mode", "STATIC");
-            }
-            if (this.config.getDouble("reinforcements.spawn-rate.max-per-tick", 3.0) < 1.0) {
-                this.config.set("reinforcements.spawn-rate.max-per-tick", 1);
-            }
             String boundaryMode = this.config.getString("boundary-visuals.mode", "ON");
             if (!"ON".equalsIgnoreCase(boundaryMode) && !"REDUCED".equalsIgnoreCase(boundaryMode) && !"OFF".equalsIgnoreCase(boundaryMode)) {
                 this.config.set("boundary-visuals.mode", "ON");
-            }
-            String resetDay = this.config.getString("weekly-reset.day", "FRIDAY");
-            try {
-                DayOfWeek.valueOf(resetDay.toUpperCase());
-            } catch (Exception e) {
-                this.config.set("weekly-reset.day", "FRIDAY");
-            }
-            double bonusMin = this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.min", 500.0);
-            double bonusMax = this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.max", 1500.0);
-            if (bonusMax < bonusMin) {
-                this.config.set("weekly-reset.first-capture-bonus.amount-range.max", bonusMin);
             }
             this.getLogger().info("Configuration validation completed successfully");
             return true;
@@ -488,35 +484,21 @@ extends JavaPlugin {
     }
 
     private void startHourlyRewards() {
-        String rewardType = this.config.getString("rewards.reward-type", "daily");
-        this.getLogger().info("Reward type from config: " + rewardType);
-        if ("hourly".equalsIgnoreCase(rewardType)) {
-            this.getLogger().info("Config contains rewards.hourly-interval: " + this.config.contains("rewards.hourly-interval"));
-            this.getLogger().info("Raw config value for hourly-interval: " + this.config.get("rewards.hourly-interval"));
-            int intervalSeconds = this.config.getInt("rewards.hourly-interval", 3600);
-            this.getLogger().info("Parsed intervalSeconds: " + intervalSeconds);
-            this.getLogger().info("Starting hourly rewards with interval: " + intervalSeconds + " seconds");
-            long intervalTicks = intervalSeconds * 20L; // Convert seconds to ticks
-            this.hourlyRewardTask = new BukkitRunnable() {
-                @Override
-                public void run() {
-                    getLogger().info("Running hourly reward distribution...");
-                    distributeHourlyRewards();
-                }
-            }.runTaskTimer(this, intervalTicks, intervalTicks);
-            this.getLogger().info("Hourly reward task scheduled successfully");
-        } else {
-            this.getLogger().info("Hourly rewards not enabled (reward-type: " + rewardType + ")");
+        if (this.hourlyRewardTask != null && !this.hourlyRewardTask.isCancelled()) {
+            this.hourlyRewardTask.cancel();
         }
+        lastHourlyRewardTimes.clear();
+
+        long intervalTicks = 20L; // Check once per second for per-zone intervals
+        this.hourlyRewardTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                distributeHourlyRewards();
+            }
+        }.runTaskTimer(this, intervalTicks, intervalTicks);
     }
 
     private void startWeeklyResetTask() {
-        if (!this.config.getBoolean("weekly-reset.enabled", true)) {
-            if (this.weeklyResetTask != null && !this.weeklyResetTask.isCancelled()) {
-                this.weeklyResetTask.cancel();
-            }
-            return;
-        }
         if (this.weeklyResetTask != null && !this.weeklyResetTask.isCancelled()) {
             this.weeklyResetTask.cancel();
         }
@@ -529,21 +511,43 @@ extends JavaPlugin {
     }
 
     private void checkWeeklyReset() {
-        DayOfWeek targetDay = parseDay(this.config.getString("weekly-reset.day", "FRIDAY"));
-        LocalTime targetTime = parseTime(this.config.getString("weekly-reset.time", "00:00"));
         LocalDateTime now = LocalDateTime.now();
-        if (now.getDayOfWeek() != targetDay) {
+        if (zoneConfigManager == null) {
             return;
         }
-        if (now.toLocalTime().isBefore(targetTime)) {
-            return;
-        }
+
+        List<CapturePoint> resetPoints = new ArrayList<>();
         long today = now.toLocalDate().toEpochDay();
-        if (this.lastWeeklyResetEpochDay == today) {
+
+        for (CapturePoint point : this.capturePoints.values()) {
+            String pointId = point.getId();
+            if (!zoneConfigManager.getBoolean(pointId, "weekly-reset.enabled", true)) {
+                continue;
+            }
+
+            DayOfWeek targetDay = parseDay(zoneConfigManager.getString(pointId, "weekly-reset.day", "FRIDAY"));
+            LocalTime targetTime = parseTime(zoneConfigManager.getString(pointId, "weekly-reset.time", "00:00"));
+            if (now.getDayOfWeek() != targetDay) {
+                continue;
+            }
+            if (now.toLocalTime().isBefore(targetTime)) {
+                continue;
+            }
+
+            long lastReset = lastWeeklyResetEpochDays.getOrDefault(pointId, -1L);
+            if (lastReset == today) {
+                continue;
+            }
+
+            resetPoints.add(point);
+            lastWeeklyResetEpochDays.put(pointId, today);
+        }
+
+        if (resetPoints.isEmpty()) {
             return;
         }
-        this.lastWeeklyResetEpochDay = today;
-        performWeeklyReset();
+
+        performWeeklyReset(resetPoints);
         saveCapturePoints();
     }
 
@@ -563,13 +567,13 @@ extends JavaPlugin {
         }
     }
 
-    private void performWeeklyReset() {
+    private void performWeeklyReset(List<CapturePoint> points) {
         int resetCount = 0;
-        for (String pointId : new ArrayList<>(this.capturePoints.keySet())) {
-            CapturePoint point = this.capturePoints.get(pointId);
+        for (CapturePoint point : points) {
             if (point == null) {
                 continue;
             }
+            String pointId = point.getId();
 
             if (this.activeSessions.containsKey(pointId)) {
                 this.stopCapture(pointId, "Weekly reset");
@@ -585,12 +589,21 @@ extends JavaPlugin {
             resetCount++;
         }
 
-        if (this.dynmapEnabled) {
+        if (resetCount == 0) {
+            return;
+        }
+
+        if (this.isDynmapEnabled()) {
             this.updateAllMarkers();
         }
 
         String message = Messages.get("messages.weekly.reset", Map.of("count", String.valueOf(resetCount)));
-        Bukkit.broadcastMessage(message);
+        broadcastMessage(message);
+        
+        // Send Discord webhook notification for weekly reset
+        if (discordWebhook != null) {
+            discordWebhook.sendWeeklyReset(resetCount);
+        }
     }
 
     public void onDisable() {
@@ -626,6 +639,24 @@ extends JavaPlugin {
         if (this.reinforcementListener != null) {
             this.reinforcementListener.shutdown();
         }
+        
+        // Cleanup map providers
+        for (MapProvider provider : mapProviders) {
+            try {
+                provider.cleanup();
+                getLogger().info("Cleaned up " + provider.getName() + " markers");
+            } catch (Exception e) {
+                getLogger().warning("Error cleaning up " + provider.getName() + ": " + e.getMessage());
+            }
+        }
+        mapProviders.clear();
+        
+        // Save and cleanup shop system
+        if (shopManager != null) {
+            shopManager.shutdown();
+            getLogger().info("Shop system shutdown complete");
+        }
+        
         this.cleanupResources();
         this.getLogger().info("TownyCapture has been disabled!");
     }
@@ -642,6 +673,7 @@ extends JavaPlugin {
         this.hiddenBossBars.clear();
         this.boundaryTasks.clear();
         this.disabledNotifications.clear();
+        this.lastWeeklyResetEpochDays.clear();
         for (BossBar bossBar : this.captureBossBars.values()) {
             if (bossBar == null) continue;
             bossBar.removeAll();
@@ -649,68 +681,11 @@ extends JavaPlugin {
     }
 
     private void createDefaultConfig() {
-        if (!this.config.contains("infowindow.template")) {
-            this.config.set("infowindow.template", (Object)"<div style=\"background-color: rgba(0,0,0,0.7); padding: 8px; border-radius: 5px; color: white;\"><div style=\"font-size:120%; font-weight:bold; color: %control_color%;\">%control_status% %controlling_town%</div><div style=\"font-size:115%; margin-top:5px;\">%name%</div><div>\u2022 Type - %type%</div><div>\u2022 Active: %active_status%</div><div>\u2022 Preparation Duration - %prep_time% minutes</div><div>\u2022 Capture Duration - %capture_time% minutes</div><div>\u2022 Daily Payout - %reward%</div></div>");
-        }
-        if (!this.config.contains("infowindow.colors.controlled")) {
-            this.config.set("infowindow.colors.controlled", (Object)"#00FF00");
-        }
-        if (!this.config.contains("infowindow.colors.unclaimed")) {
-            this.config.set("infowindow.colors.unclaimed", (Object)"#8B0000"); // Dark red
-        }
-        if (!this.config.contains("infowindow.colors.capturing")) {
-            this.config.set("infowindow.colors.capturing", (Object)"#FFAA00");
-        }
-        if (!this.config.contains("infowindow.text.controlled")) {
-            this.config.set("infowindow.text.controlled", (Object)"Controlled by");
-        }
-        if (!this.config.contains("infowindow.text.unclaimed")) {
-            this.config.set("infowindow.text.unclaimed", (Object)"Unclaimed");
-        }
-        if (!this.config.contains("infowindow.text.capturing")) {
-            this.config.set("infowindow.text.capturing", (Object)"Being captured by");
-        }
         if (!this.config.contains("point_types")) {
             this.config.set("point_types.default", (Object)"Strategic Point");
             this.config.set("point_types.movecraft", (Object)"Movecraft");
             this.config.set("point_types.resource", (Object)"Resource Node");
             this.config.set("point_types.military", (Object)"Military Base");
-        }
-        if (!this.config.contains("preparation_time")) {
-            this.config.set("preparation_time", (Object)5);
-        }
-        if (!this.config.contains("capture_time")) {
-            this.config.set("capture_time", (Object)30);
-        }
-        if (!this.config.contains("bossbar.title")) {
-            this.config.set("bossbar.title", (Object)"&e%town% is capturing %point% (Started by %player%) - %time_left%");
-        }
-        if (!this.config.contains("bossbar.color.start")) {
-            this.config.set("bossbar.color.start", (Object)"RED");
-        }
-        if (!this.config.contains("bossbar.color.middle")) {
-            this.config.set("bossbar.color.middle", (Object)"YELLOW");
-        }
-        if (!this.config.contains("bossbar.color.end")) {
-            this.config.set("bossbar.color.end", (Object)"GREEN");
-        }
-        if (!this.config.contains("bossbar.death_title")) {
-            this.config.set("bossbar.death_title", (Object)"&c%victim% has been defeated by %killer% at %point%!");
-        }
-        if (!this.config.contains("messages.warnings.approaching_edge")) {
-            this.config.set("messages.warnings.approaching_edge", (Object)"&c\u26a0 Warning: You are approaching the edge of the capture zone! If you leave, the capture will be cancelled.");
-        }
-        if (!this.config.contains("messages.capture.death_victim")) {
-            this.config.set("messages.capture.death_victim", (Object)"&cYour capture of %point% has been cancelled because you were defeated by %killer%!");
-        }
-        if (!this.config.contains("messages.capture.death_killer")) {
-            this.config.set("messages.capture.death_killer", (Object)"&aYou have defeated %victim% and stopped their capture of %point%!");
-        }
-        if (!this.config.contains("messages.capture.death_broadcast")) {
-            this.config.set("messages.capture.death_broadcast", (Object)"&c%town%'s capture of %point% has been cancelled! %victim% was defeated by %killer%!");
-        }
-        if (!this.config.contains("messages.errors.not-enough-players")) {
-            this.config.set("messages.errors.not-enough-players", (Object)"&cAt least %minplayers% players must be online to start a capture!");
         }
         if (!this.config.contains("settings.min-online-players")) {
             this.config.set("settings.min-online-players", (Object)5);
@@ -718,47 +693,12 @@ extends JavaPlugin {
         if (!this.config.contains("settings.auto-show-boundaries")) {
             this.config.set("settings.auto-show-boundaries", (Object)true);
         }
-        if (!this.config.contains("capture-conditions.prevent-self-capture")) {
-            this.config.set("capture-conditions.prevent-self-capture", true);
-        }
-        if (!this.config.contains("capture-conditions.capture-cooldown.enabled")) {
-            this.config.set("capture-conditions.capture-cooldown.enabled", true);
-        }
-        if (!this.config.contains("capture-conditions.capture-cooldown.duration-ms")) {
-            this.config.set("capture-conditions.capture-cooldown.duration-ms", 300000L);
-        }
-        if (!this.config.contains("colors.unclaimed-fill")) {
-            this.config.set("colors.unclaimed-fill", (Object)"#8B0000"); // Dark red
-        }
-        if (!this.config.contains("colors.unclaimed-border")) {
-            this.config.set("colors.unclaimed-border", (Object)"#404040"); // Dark gray
-        }
-        if (!this.config.contains("colors.claimed-fill")) {
-            this.config.set("colors.claimed-fill", (Object)"#0000FF");
-        }
-        if (!this.config.contains("colors.claimed-border")) {
-            this.config.set("colors.claimed-border", (Object)"#FF0000");
-        }
         if (!this.config.contains("blocked-commands")) {
             ArrayList<String> defaultCommands = new ArrayList<String>();
             defaultCommands.add("/home");
             defaultCommands.add("/tp");
             defaultCommands.add("/spawn");
             this.config.set("blocked-commands", defaultCommands);
-        }
-        if (!this.config.contains("rewards.reward-type")) {
-            this.config.set("rewards.reward-type", "daily");
-        }
-        if (!this.config.contains("rewards.hourly-interval")) {
-            this.config.set("rewards.hourly-interval", 3600);
-        }
-        if (!this.config.contains("messages.reward.hourly_distributed")) {
-            this.config.set("messages.reward.hourly_distributed", "&a%town% has received %reward% hourly reward for controlling %point%!");
-        }
-        if (!this.config.contains("rewards.hourly-mode")) {
-            this.config.set("rewards.hourly-mode", "STATIC");
-            this.config.set("rewards.hourly-dynamic.min", 50.0);
-            this.config.set("rewards.hourly-dynamic.max", 100.0);
         }
         if (!this.config.contains("boundary-visuals.mode")) {
             this.config.set("boundary-visuals.mode", "ON");
@@ -772,17 +712,6 @@ extends JavaPlugin {
             this.config.set("boundary-visuals.reduced.sides-multiplier", 2.0);
             this.config.set("boundary-visuals.reduced.vertical-range.min", -2);
             this.config.set("boundary-visuals.reduced.vertical-range.max", 20);
-        }
-        if (!this.config.contains("reinforcements.spawn-rate.max-per-tick")) {
-            this.config.set("reinforcements.spawn-rate.max-per-tick", 3);
-        }
-        if (!this.config.contains("weekly-reset.enabled")) {
-            this.config.set("weekly-reset.enabled", true);
-            this.config.set("weekly-reset.day", "FRIDAY");
-            this.config.set("weekly-reset.time", "00:00");
-            this.config.set("weekly-reset.first-capture-bonus.enabled", true);
-            this.config.set("weekly-reset.first-capture-bonus.amount-range.min", 500.0);
-            this.config.set("weekly-reset.first-capture-bonus.amount-range.max", 1500.0);
         }
         try {
             this.saveConfig();
@@ -803,7 +732,7 @@ extends JavaPlugin {
     }
 
     private void startTownUpdater() {
-        if (!this.dynmapEnabled || this.townUpdater == null) {
+        if (!this.isDynmapEnabled() || this.townUpdater == null) {
             this.getLogger().warning("Cannot start town updater: Dynmap is not enabled or townUpdater is not initialized!");
             return;
         }
@@ -812,7 +741,7 @@ extends JavaPlugin {
             public void run() {
                 townUpdater.run();
             }
-        }.runTaskTimerAsynchronously(this, 0L, 300L);
+        }.runTaskTimer(this, 0L, 300L);
     }
 
     public int convertBlockRadiusToChunkRadius(int blockRadius) {
@@ -887,68 +816,103 @@ extends JavaPlugin {
         }
     }
 
-    private void setupDynmap() {
-        Plugin dynmapPlugin = getServer().getPluginManager().getPlugin("Dynmap");
-        if (dynmapPlugin != null && dynmapPlugin.isEnabled()) {
-            this.dynmapEnabled = true;
-            try {
-                this.dynmapAPI = (DynmapAPI) dynmapPlugin;
-                this.markerAPI = this.dynmapAPI.getMarkerAPI();
-                
-                // Create marker set with proper ID and label
-                this.markerSet = this.markerAPI.createMarkerSet("townycapture.markerset", "Capture Points", null, false);
-                if (this.markerSet == null) {
-                    this.getLogger().severe("Failed to create Dynmap marker set!");
-                    this.dynmapEnabled = false;
+    public boolean isNotificationsDisabled(Player player) {
+        return player != null && disabledNotifications.getOrDefault(player.getUniqueId(), false);
+    }
+
+    public void sendNotification(Player player, String message) {
+        if (player == null || isNotificationsDisabled(player)) {
             return;
         }
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        player.sendMessage(colorize(message));
+    }
 
-                // Set marker set properties
-                this.markerSet.setLayerPriority(10);
-                this.markerSet.setHideByDefault(false);
-                
-                // Initialize area style
-                this.areaStyle = new AreaStyle(this.config, "dynmap", this.markerAPI);
-                
-                // Create updater and start it
-                this.townUpdater = new UpdateZones(this, this.markerSet, this.areaStyle);
-                startTownUpdater();
-                
-                // Update all markers immediately
-                this.updateAllMarkers();
-                
-                this.getLogger().info("Dynmap integration enabled!");
-            } catch (Exception e) {
-                this.getLogger().severe("Failed to initialize Dynmap: " + e.getMessage());
-                e.printStackTrace();
-                this.dynmapEnabled = false;
+    private void setupMapProviders() {
+        mapProviders.clear();
+        
+        // Initialize Dynmap if enabled
+        if (getConfig().getBoolean("dynmap.enabled", true)) {
+            try {
+                DynmapProvider dynmapProvider = new DynmapProvider(this);
+                if (dynmapProvider.initialize()) {
+                    mapProviders.add(dynmapProvider);
+                    
+                    // Keep UpdateZones for backward compatibility
+                    this.townUpdater = dynmapProvider.getTownUpdater();
+                    if (this.townUpdater != null) {
+                        startTownUpdater();
+                    }
+                }
+            } catch (NoClassDefFoundError | Exception e) {
+                getLogger().warning("Failed to initialize Dynmap: " + e.getMessage());
+                if (getConfig().getBoolean("settings.debug-mode", false)) {
+                    e.printStackTrace();
+                }
             }
         } else {
-            this.dynmapEnabled = false;
-            this.getLogger().warning("Dynmap not found or not enabled! Dynmap integration disabled.");
+            getLogger().info("Dynmap integration disabled in config.");
+        }
+        
+        // Initialize BlueMap if enabled
+        if (getConfig().getBoolean("bluemap.enabled", true)) {
+            try {
+                BlueMapProvider blueMapProvider = new BlueMapProvider(this);
+                if (blueMapProvider.initialize()) {
+                    mapProviders.add(blueMapProvider);
+                }
+            } catch (NoClassDefFoundError | Exception e) {
+                getLogger().warning("Failed to initialize BlueMap: " + e.getMessage());
+                if (getConfig().getBoolean("settings.debug-mode", false)) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            getLogger().info("BlueMap integration disabled in config.");
+        }
+        
+        // Log active map providers
+        if (mapProviders.isEmpty()) {
+            getLogger().warning("No map providers active. Capture points will not be visible on web maps.");
+        } else {
+            StringBuilder providers = new StringBuilder("Active map providers: ");
+            for (int i = 0; i < mapProviders.size(); i++) {
+                if (i > 0) providers.append(", ");
+                providers.append(mapProviders.get(i).getName());
+            }
+            getLogger().info(providers.toString());
         }
     }
 
     public void updateAllMarkers() {
-        if (!this.dynmapEnabled || this.markerSet == null) {
-            return;
+        for (MapProvider provider : mapProviders) {
+            try {
+                provider.updateAllMarkers();
+            } catch (Exception e) {
+                getLogger().warning("Error updating markers for " + provider.getName() + ": " + e.getMessage());
+            }
         }
-        
-        try {
-            // Clear existing markers
-            for (Marker marker : this.markerSet.getMarkers()) {
-                marker.deleteMarker();
+    }
+    
+    public void createOrUpdateMarker(CapturePoint point) {
+        for (MapProvider provider : mapProviders) {
+            try {
+                provider.createOrUpdateMarker(point);
+            } catch (Exception e) {
+                getLogger().warning("Error updating marker for " + provider.getName() + ": " + e.getMessage());
             }
-            
-            // Update all capture points
-            for (CapturePoint point : this.capturePoints.values()) {
-                if (point.isShowOnMap()) {
-                    this.townUpdater.updateMarker(point);
-                }
+        }
+    }
+    
+    public void removeMarker(String pointId) {
+        for (MapProvider provider : mapProviders) {
+            try {
+                provider.removeMarker(pointId);
+            } catch (Exception e) {
+                getLogger().warning("Error removing marker for " + provider.getName() + ": " + e.getMessage());
             }
-        } catch (Exception e) {
-            this.getLogger().severe("Failed to update Dynmap markers: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -964,6 +928,141 @@ extends JavaPlugin {
         }
         catch (Exception e) {
             this.getLogger().warning("Error setting up WorldGuard integration: " + e.getMessage());
+        }
+    }
+
+    private void setupMobSpawner() {
+        try {
+            // Create vanilla mob spawner as the base
+            VanillaMobSpawner vanillaSpawner = new VanillaMobSpawner(this);
+            
+            // Check if MythicMobs integration is enabled in config (global or per-zone)
+            boolean mythicEnabled = false;
+            if (zoneConfigManager != null) {
+                mythicEnabled = zoneConfigManager.getDefaultBoolean("reinforcements.mythicmobs.enabled", false);
+            } else {
+                mythicEnabled = getConfig().getBoolean("reinforcements.mythicmobs.enabled", false);
+            }
+            if (!mythicEnabled && zoneConfigManager != null) {
+                for (String zoneId : capturePoints.keySet()) {
+                    if (zoneConfigManager.getBoolean(zoneId, "reinforcements.mythicmobs.enabled", false)) {
+                        mythicEnabled = true;
+                        break;
+                    }
+                }
+            }
+            
+            MobSpawner spawner;
+            
+            if (mythicEnabled) {
+                // Try to create MythicMobs handler with vanilla fallback
+                try {
+                    MythicMobsHandler mythicHandler = new MythicMobsHandler(this, vanillaSpawner);
+                    spawner = mythicHandler;
+                    getLogger().info("MythicMobs integration initialized!");
+                } catch (NoClassDefFoundError | Exception e) {
+                    getLogger().warning("Failed to initialize MythicMobs integration: " + e.getMessage());
+                    getLogger().warning("Falling back to vanilla mob spawning.");
+                    spawner = vanillaSpawner;
+                }
+            } else {
+                // Use vanilla spawner
+                spawner = vanillaSpawner;
+                getLogger().info("Using vanilla mob spawning for reinforcements.");
+            }
+            
+            // Set the spawner in the reinforcement listener
+            if (reinforcementListener != null) {
+                reinforcementListener.setMobSpawner(spawner);
+            } else {
+                getLogger().warning("ReinforcementListener not initialized! Mob spawner cannot be set.");
+            }
+            
+            // Log configured mobs if debug mode is enabled
+            if (getConfig().getBoolean("settings.debug-mode", false)) {
+                getLogger().info("Configured mobs: " + String.join(", ", spawner.getConfiguredMobs()));
+            }
+            
+        } catch (Exception e) {
+            getLogger().severe("Error setting up mob spawner: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Initialize statistics tracking system
+     */
+    private void setupStatistics() {
+        try {
+            getLogger().info("Initializing statistics system...");
+            
+            // Check if statistics are enabled in config
+            boolean statsEnabled = getConfig().getBoolean("statistics.enabled", true);
+            
+            if (!statsEnabled) {
+                getLogger().info("Statistics system is disabled in config.");
+                return;
+            }
+            
+            // Initialize statistics manager
+            statisticsManager = new StatisticsManager(this);
+            getLogger().info("Statistics manager initialized.");
+            
+            // Initialize statistics GUI
+            statisticsGUI = new StatisticsGUI(this, statisticsManager);
+            getLogger().info("Statistics GUI initialized.");
+            
+            // Register GUI listener
+            getServer().getPluginManager().registerEvents(new StatisticsGUIListener(this, statisticsGUI), this);
+            getLogger().info("Statistics GUI listener registered.");
+            
+            // Register statistics tracking listener
+            getServer().getPluginManager().registerEvents(new StatisticsTrackingListener(this), this);
+            getLogger().info("Statistics tracking listener registered.");
+            
+            // Schedule auto-save task
+            int saveInterval = getConfig().getInt("statistics.auto-save-interval", 300);
+            getServer().getScheduler().runTaskTimer(this, () -> {
+                if (statisticsManager != null) {
+                    statisticsManager.saveStatistics();
+                }
+            }, saveInterval * 20L, saveInterval * 20L);
+            
+            getLogger().info("Statistics system enabled with auto-save every " + saveInterval + " seconds.");
+            
+        } catch (Exception e) {
+            getLogger().severe("Error setting up statistics system: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Setup shop system
+     */
+    private void setupShopSystem() {
+        try {
+            // Check if shop system is enabled in config
+            boolean shopsEnabled = getConfig().getBoolean("shops.enabled", false);
+            
+            if (!shopsEnabled) {
+                getLogger().info("Shop system is disabled in config.");
+                return;
+            }
+            
+            // Initialize shop manager
+            shopManager = new ShopManager(this);
+            getLogger().info("Shop manager initialized.");
+            
+            // Initialize shop listener
+            shopListener = new ShopListener(this);
+            getServer().getPluginManager().registerEvents(shopListener, this);
+            getLogger().info("Shop listener registered.");
+            
+            getLogger().info("Shop system enabled! Use /cap shop to access zone shops.");
+            
+        } catch (Exception e) {
+            getLogger().severe("Error setting up shop system: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -998,7 +1097,7 @@ extends JavaPlugin {
             "y", String.valueOf(Math.round(point.getLocation().getY())),
             "z", String.valueOf(Math.round(point.getLocation().getZ())))));
         player.sendMessage(Messages.get("messages.info.radius", Map.of("radius", String.valueOf(point.getChunkRadius()))));
-        player.sendMessage(Messages.get("messages.info.reward", Map.of("reward", String.valueOf(point.getReward()))));
+        player.sendMessage(Messages.get("messages.info.reward", Map.of("reward", String.valueOf(getBaseReward(point)))));
         player.sendMessage(Messages.get("messages.info.type", Map.of("type", this.getPointTypeName(point.getType()))));
         if (point.getControllingTown().isEmpty()) {
             player.sendMessage(Messages.get("messages.info.status-unclaimed"));
@@ -1039,7 +1138,11 @@ extends JavaPlugin {
         this.capturePoints.clear();
         this.loadCapturePoints();
         this.loadPointTypes();
-        if (this.dynmapEnabled) {
+        if (zoneConfigManager != null) {
+            zoneConfigManager.reloadDefaults();
+            zoneConfigManager.loadAllZoneConfigs();
+        }
+        if (this.isDynmapEnabled()) {
             this.updateAllMarkers();
         }
         startWeeklyResetTask();
@@ -1067,7 +1170,14 @@ extends JavaPlugin {
                 file.createNewFile();
             }
             YamlConfiguration config = new YamlConfiguration();
-            config.set("metadata.lastWeeklyResetEpochDay", this.lastWeeklyResetEpochDay);
+            config.options().header(
+                "AUTO-GENERATED FILE - DO NOT EDIT UNLESS YOU KNOW WHAT YOU ARE DOING.\n" +
+                "This file stores capture point state and metadata."
+            );
+            ConfigurationSection resetSection = config.createSection("metadata.weekly-reset-epoch-days");
+            for (Map.Entry<String, Long> entry : this.lastWeeklyResetEpochDays.entrySet()) {
+                resetSection.set(entry.getKey(), entry.getValue());
+            }
             for (Map.Entry<String, CapturePoint> entry : this.capturePoints.entrySet()) {
                 String path = "points." + entry.getKey();
                 CapturePoint point = entry.getValue();
@@ -1103,7 +1213,14 @@ extends JavaPlugin {
             }
             YamlConfiguration config = new YamlConfiguration();
             config.load(file);
-            this.lastWeeklyResetEpochDay = config.getLong("metadata.lastWeeklyResetEpochDay", -1L);
+            this.lastWeeklyResetEpochDays.clear();
+            ConfigurationSection resetSection = config.getConfigurationSection("metadata.weekly-reset-epoch-days");
+            if (resetSection != null) {
+                for (String key : resetSection.getKeys(false)) {
+                    this.lastWeeklyResetEpochDays.put(key, resetSection.getLong(key, -1L));
+                }
+            }
+            long legacyReset = config.getLong("metadata.lastWeeklyResetEpochDay", -1L);
             ConfigurationSection pointsSection = config.getConfigurationSection("points");
             if (pointsSection == null) {
                 return;
@@ -1135,6 +1252,9 @@ extends JavaPlugin {
                 point.setFirstCaptureBonusAvailable(bonusAvailable);
                 if (!controllingTown.isEmpty()) {
                     point.setControllingTown(controllingTown);
+                }
+                if (!this.lastWeeklyResetEpochDays.containsKey(id) && legacyReset >= 0L) {
+                    this.lastWeeklyResetEpochDays.put(id, legacyReset);
                 }
                 this.capturePoints.put(id, point);
                 this.getLogger().info("Loaded capture point: " + name);
@@ -1216,6 +1336,7 @@ extends JavaPlugin {
             player.sendMessage(Messages.get("messages.capture.point-not-found"));
             return false;
         }
+        ZoneConfigManager zoneManager = zoneConfigManager;
 
         // Check minimum online players
         int minOnlinePlayers = config.getInt("settings.min-online-players", 5);
@@ -1239,7 +1360,9 @@ extends JavaPlugin {
         }
         
         // Block self-capture when town already controls the point
-        boolean preventSelfCapture = config.getBoolean("capture-conditions.prevent-self-capture", true);
+        boolean preventSelfCapture = zoneManager != null
+            ? zoneManager.getBoolean(pointId, "capture-conditions.prevent-self-capture", true)
+            : config.getBoolean("capture-conditions.prevent-self-capture", true);
         String controllingTown = point.getControllingTown();
         if (preventSelfCapture && controllingTown != null && !controllingTown.isEmpty() &&
             controllingTown.equalsIgnoreCase(town.getName())) {
@@ -1250,9 +1373,14 @@ extends JavaPlugin {
         }
 
         // Enforce cooldown after a successful capture
-        if (config.getBoolean("capture-conditions.capture-cooldown.enabled", true) && 
+        boolean cooldownEnabled = zoneManager != null
+            ? zoneManager.getBoolean(pointId, "capture-conditions.capture-cooldown.enabled", true)
+            : config.getBoolean("capture-conditions.capture-cooldown.enabled", true);
+        if (cooldownEnabled && 
             controllingTown != null && !controllingTown.isEmpty()) {
-            long cooldownMs = config.getLong("capture-conditions.capture-cooldown.duration-ms", 300000L);
+            long cooldownMs = zoneManager != null
+                ? zoneManager.getLong(pointId, "capture-conditions.capture-cooldown.duration-ms", 300000L)
+                : config.getLong("capture-conditions.capture-cooldown.duration-ms", 300000L);
             long lastCaptureTime = point.getLastCaptureTime();
             if (cooldownMs > 0 && lastCaptureTime > 0L) {
                 long elapsed = System.currentTimeMillis() - lastCaptureTime;
@@ -1292,14 +1420,32 @@ extends JavaPlugin {
         createBeacon(point.getLocation());
 
         // Start preparation phase
-        int preparationTime = config.getInt("capture.preparation.duration", 1);
-        int captureTime = config.getInt("capture.capture.duration", 15);
-        boolean showCountdown = config.getBoolean("capture.preparation.show-countdown", true);
+        int preparationTime = zoneManager != null
+            ? zoneManager.getInt(pointId, "capture.preparation.duration", 1)
+            : config.getInt("capture.preparation.duration", 1);
+        int captureTime = zoneManager != null
+            ? zoneManager.getInt(pointId, "capture.capture.duration", 15)
+            : config.getInt("capture.capture.duration", 15);
+        boolean showCountdown = zoneManager != null
+            ? zoneManager.getBoolean(pointId, "capture.preparation.show-countdown", true)
+            : config.getBoolean("capture.preparation.show-countdown", true);
 
         // Create capture session
         CaptureSession session = new CaptureSession(point, town, player, preparationTime, captureTime);
         session.getPlayers().add(player);
         activeSessions.put(pointId, session);
+        
+        // Track statistics for capture start
+        if (statisticsManager != null) {
+            statisticsManager.onCaptureStart(point.getId(), town.getName(), player.getUniqueId());
+        }
+        
+        // Send Discord webhook notification
+        if (discordWebhook != null) {
+            Location loc = point.getLocation();
+            String locationStr = loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ();
+            discordWebhook.sendCaptureStarted(point.getId(), point.getName(), town.getName(), locationStr);
+        }
 
         // Create boss bar
         BossBar bossBar = Bukkit.createBossBar(
@@ -1482,6 +1628,28 @@ extends JavaPlugin {
         point.setLastCapturingTown(capturingTown);
         point.setLastCaptureTime(System.currentTimeMillis());
         
+        // Track statistics for capture completion
+        if (statisticsManager != null && session != null) {
+            java.util.Set<java.util.UUID> playerUUIDs = session.getPlayers().stream()
+                .map(org.bukkit.entity.Player::getUniqueId)
+                .collect(java.util.stream.Collectors.toSet());
+            statisticsManager.onCaptureComplete(
+                point.getId(),
+                point.getName(),
+                capturingTown,
+                session.getInitiatorUUID(),
+                playerUUIDs
+            );
+        }
+        
+        // Send Discord webhook notification
+        if (discordWebhook != null && session != null) {
+            long captureTimeMs = System.currentTimeMillis() - session.getStartTime();
+            int captureTimeSeconds = (int) (captureTimeMs / 1000);
+            String captureTimeStr = captureTimeSeconds + "s";
+            discordWebhook.sendCaptureCompleted(point.getId(), point.getName(), capturingTown, captureTimeStr);
+        }
+        
         // Set the town's color for Dynmap visualization
         String townColor = getTownColor(capturingTown);
         point.setColor(townColor);
@@ -1500,7 +1668,7 @@ extends JavaPlugin {
                 Town playerTown = TownyAPI.getInstance().getTown(player);
                 if (playerTown != null && playerTown.getName().equals(capturingTown) &&
                     isWithinChunkRadius(player.getLocation(), point.getLocation(), point.getChunkRadius())) {
-                    player.sendMessage(personalMessage);
+                    sendNotification(player, personalMessage);
                 }
             } catch (Exception e) {
                 // Ignore errors
@@ -1511,9 +1679,16 @@ extends JavaPlugin {
         playCaptureSoundAtLocation("capture-complete", point.getLocation());
 
         // First capture bonus after weekly reset
-        if (point.isFirstCaptureBonusAvailable() && this.config.getBoolean("weekly-reset.first-capture-bonus.enabled", true)) {
-            double minBonus = this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.min", 500.0);
-            double maxBonus = this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.max", 1500.0);
+        boolean bonusEnabled = zoneConfigManager != null
+            ? zoneConfigManager.getBoolean(pointId, "weekly-reset.first-capture-bonus.enabled", true)
+            : this.config.getBoolean("weekly-reset.first-capture-bonus.enabled", true);
+        if (point.isFirstCaptureBonusAvailable() && bonusEnabled) {
+            double minBonus = zoneConfigManager != null
+                ? zoneConfigManager.getDouble(pointId, "weekly-reset.first-capture-bonus.amount-range.min", 500.0)
+                : this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.min", 500.0);
+            double maxBonus = zoneConfigManager != null
+                ? zoneConfigManager.getDouble(pointId, "weekly-reset.first-capture-bonus.amount-range.max", 1500.0)
+                : this.config.getDouble("weekly-reset.first-capture-bonus.amount-range.max", 1500.0);
             if (maxBonus < minBonus) {
                 maxBonus = minBonus;
             }
@@ -1527,10 +1702,15 @@ extends JavaPlugin {
                     com.palmergames.bukkit.towny.object.Resident resident = com.palmergames.bukkit.towny.TownyAPI.getInstance().getResident(bonusTarget.getUniqueId());
                     if (resident != null && resident.getAccount() != null) {
                         resident.getAccount().deposit(bonus, "First capture weekly bonus for " + point.getName());
-                        bonusTarget.sendMessage(Messages.get("messages.weekly.first-capture-bonus", Map.of(
+                        sendNotification(bonusTarget, Messages.get("messages.weekly.first-capture-bonus", Map.of(
                             "zone", point.getName(),
                             "amount", String.format("%.1f", bonus)
                         )));
+                        
+                        // Send Discord webhook notification for first capture bonus
+                        if (discordWebhook != null) {
+                            discordWebhook.sendFirstCaptureBonus(point.getId(), point.getName(), capturingTown, bonus);
+                        }
                     }
                 } catch (Exception e) {
                     getLogger().warning("Failed to grant first capture bonus to " + bonusTarget.getName() + ": " + e.getMessage());
@@ -1551,7 +1731,7 @@ extends JavaPlugin {
         }
         
         // Update Dynmap if enabled
-        if (dynmapEnabled) {
+        if (isDynmapEnabled()) {
             updateAllMarkers();
         }
         
@@ -1579,6 +1759,17 @@ extends JavaPlugin {
         CaptureSession session = this.activeSessions.get(pointId);
         CapturePoint point = this.capturePoints.get(pointId);
         
+        // Track statistics for failed capture
+        if (statisticsManager != null && session != null) {
+            statisticsManager.onCaptureFailed(point.getId(), session.getTownName(), session.getInitiatorUUID());
+        }
+        
+        // Send Discord webhook notification for capture failure
+        if (discordWebhook != null && session != null) {
+            String reason = victimName + " was killed by " + killerName;
+            discordWebhook.sendCaptureFailed(point.getId(), point.getName(), session.getTownName(), reason);
+        }
+        
         // Clear reinforcements
         if (reinforcementListener != null) {
             reinforcementListener.clearReinforcements(pointId);
@@ -1587,7 +1778,9 @@ extends JavaPlugin {
         this.removeBeacon(point);
         BossBar bossBar = this.captureBossBars.remove(pointId);
         if (bossBar != null) {
-            String deathTitle = this.config.getString("bossbar.death_title", "&c%victim% has been defeated by %killer% at %point%!");
+            String deathTitle = zoneConfigManager != null
+                ? zoneConfigManager.getString(pointId, "bossbar.death_title", "&c%victim% has been defeated by %killer% at %point%!")
+                : this.config.getString("bossbar.death_title", "&c%victim% has been defeated by %killer% at %point%!");
             deathTitle = deathTitle.replace("%victim%", victimName).replace("%killer%", killerName).replace("%point%", point.getName());
             bossBar.setTitle(this.colorize(deathTitle));
             bossBar.setColor(BarColor.RED);
@@ -1608,8 +1801,8 @@ extends JavaPlugin {
             "victim", victimName,
             "killer", killerName
         ));
-        Bukkit.broadcastMessage(message);
-        if (this.dynmapEnabled) {
+        broadcastMessage(message);
+        if (this.isDynmapEnabled()) {
             this.townUpdater.updateMarker(point);
         }
     }
@@ -1620,6 +1813,17 @@ extends JavaPlugin {
         }
         CaptureSession session = this.activeSessions.get(pointId);
         CapturePoint point = this.capturePoints.get(pointId);
+        
+        // Track statistics for failed capture (admin stopped)
+        if (statisticsManager != null && session != null) {
+            statisticsManager.onCaptureFailed(point.getId(), session.getTownName(), session.getInitiatorUUID());
+        }
+        
+        // Send Discord webhook notification for capture cancellation
+        if (discordWebhook != null && session != null) {
+            String webhookReason = (reason != null && !reason.isEmpty()) ? reason : "Admin stopped capture";
+            discordWebhook.sendCaptureCancelled(point.getId(), point.getName(), session.getTownName(), webhookReason);
+        }
         
         // Clear reinforcements
         if (reinforcementListener != null) {
@@ -1643,8 +1847,8 @@ extends JavaPlugin {
         if (reason != null && !reason.isEmpty()) {
             message = message + " Reason: " + reason;
         }
-        Bukkit.broadcastMessage(message);
-        if (this.dynmapEnabled) {
+        broadcastMessage(message);
+        if (this.isDynmapEnabled()) {
             this.townUpdater.updateMarker(point);
         }
         return true;
@@ -1686,7 +1890,7 @@ extends JavaPlugin {
         point.setColor(townColor);
         
         // Update Dynmap if enabled
-        if (this.dynmapEnabled) {
+        if (this.isDynmapEnabled()) {
             this.updateAllMarkers();
         }
         
@@ -1698,7 +1902,7 @@ extends JavaPlugin {
             "town", town.getName(),
             "zone", point.getName()
         ));
-        Bukkit.broadcastMessage(message);
+        broadcastMessage(message);
         
         return true;
     }
@@ -1723,7 +1927,7 @@ extends JavaPlugin {
         point.setColor("#8B0000"); // Reset to default dark red color
 
         // Update Dynmap if enabled
-        if (dynmapEnabled) {
+        if (isDynmapEnabled()) {
             updateAllMarkers();
         }
 
@@ -1759,7 +1963,7 @@ extends JavaPlugin {
         }
 
         // Update Dynmap if enabled
-        if (dynmapEnabled) {
+        if (isDynmapEnabled()) {
             updateAllMarkers();
         }
 
@@ -1815,7 +2019,7 @@ extends JavaPlugin {
         });
         
         // Remove Dynmap markers if enabled
-        if (dynmapEnabled && townUpdater != null) {
+        if (isDynmapEnabled() && townUpdater != null) {
             townUpdater.removeMarkers(pointId);
         }
         
@@ -1823,6 +2027,14 @@ extends JavaPlugin {
         capturePoints.remove(pointId);
         captureTasks.remove(pointId);
         captureBossBars.remove(pointId);
+        lastHourlyRewardTimes.remove(pointId);
+        lastWeeklyResetEpochDays.remove(pointId);
+        
+        // Backup zone config file (safe delete)
+        if (zoneConfigManager != null) {
+            zoneConfigManager.deleteZoneConfig(pointId, true);
+            getLogger().info("Backed up config for deleted zone: " + pointId);
+        }
         
         // Save the updated capture points
         saveCapturePoints();
@@ -1862,8 +2074,15 @@ extends JavaPlugin {
         capturePoints.put(id, point);
         saveCapturePoints();
         
+        // Generate zone config from defaults
+        if (zoneConfigManager != null) {
+            zoneConfigManager.generateZoneConfig(id);
+            zoneConfigManager.setZoneSetting(id, "rewards.base-reward", reward);
+            getLogger().info("Generated config file for zone: " + id);
+        }
+        
         // Update Dynmap markers immediately for the new point
-        if (dynmapEnabled && townUpdater != null) {
+        if (isDynmapEnabled() && townUpdater != null) {
             townUpdater.updateMarker(point);
         }
         
@@ -1877,36 +2096,55 @@ extends JavaPlugin {
 
     public void handleNewDay() {
         this.getLogger().info("New day event triggered");
-        String rewardType = this.config.getString("rewards.reward-type", "daily");
-        this.getLogger().info("Reward type for new day: " + rewardType);
-        if ("daily".equalsIgnoreCase(rewardType)) {
-            this.getLogger().info("Distributing daily rewards");
-            distributeRewards();
-        } else {
-            this.getLogger().info("Daily rewards disabled (using hourly mode)");
-        }
+        distributeRewards();
     }
 
     public void distributeRewards() {
         for (CapturePoint point : this.capturePoints.values()) {
+            if (!isDailyReward(point.getId())) {
+                continue;
+            }
             if (point.getControllingTown().isEmpty()) continue;
             TownyAPI api = TownyAPI.getInstance();
             Town town = api.getTown(point.getControllingTown());
             if (town == null) {
                 point.setControllingTown("");
-                if (!this.dynmapEnabled) continue;
+                if (!this.isDynmapEnabled()) continue;
                 this.townUpdater.updateMarker(point);
                 continue;
             }
             try {
-                town.getAccount().deposit(point.getReward(), "Reward for controlling " + point.getName());
-                this.getLogger().info("Gave " + point.getReward() + " to " + town.getName() + " for controlling " + point.getName());
+                double baseReward = getBaseReward(point);
+                town.getAccount().deposit(baseReward, "Reward for controlling " + point.getName());
+                this.getLogger().info("Gave " + baseReward + " to " + town.getName() + " for controlling " + point.getName());
+                
+                // Track reward statistics
+                if (statisticsManager != null) {
+                    statisticsManager.onRewardDistributed(
+                        point.getId(), 
+                        point.getName(), 
+                        town.getName(), 
+                        baseReward
+                    );
+                }
+                
+                // Send Discord webhook notification
+                if (discordWebhook != null) {
+                    discordWebhook.sendRewardsDistributed(
+                        point.getId(), 
+                        point.getName(), 
+                        town.getName(), 
+                        baseReward, 
+                        "daily"
+                    );
+                }
+                
                 String message = Messages.get("messages.reward.distributed", Map.of(
                     "town", town.getName(),
-                    "reward", String.valueOf(point.getReward()),
+                    "reward", String.valueOf(baseReward),
                     "zone", point.getName()
                 ));
-                Bukkit.broadcastMessage(message);
+                broadcastMessage(message);
             }
             catch (Exception e) {
                 this.getLogger().warning("Failed to give reward to " + town.getName());
@@ -1916,13 +2154,38 @@ extends JavaPlugin {
     }
 
     public void distributeHourlyRewards() {
-        this.getLogger().info("Distributing hourly rewards. Capture points: " + this.capturePoints.size());
+        long now = System.currentTimeMillis();
+        boolean debug = this.config.getBoolean("settings.debug-mode", false);
         for (CapturePoint point : this.capturePoints.values()) {
-            this.getLogger().info("Checking point: " + point.getName() + ", controlling town: '" + point.getControllingTown() + "'");
-            if (point.getControllingTown().isEmpty()) {
-                this.getLogger().info("Point " + point.getName() + " has no controlling town, skipping");
+            String pointId = point.getId();
+            if (!isHourlyReward(pointId)) {
+                lastHourlyRewardTimes.remove(pointId);
                 continue;
             }
+            if (point.getControllingTown().isEmpty()) {
+                lastHourlyRewardTimes.remove(pointId);
+                continue;
+            }
+
+            int intervalSeconds = getHourlyIntervalSeconds(pointId);
+            if (intervalSeconds < 1) {
+                intervalSeconds = 1;
+            }
+
+            Long lastRewardTime = lastHourlyRewardTimes.get(pointId);
+            if (lastRewardTime == null) {
+                lastHourlyRewardTimes.put(pointId, now);
+                continue;
+            }
+
+            long elapsedMs = now - lastRewardTime;
+            long intervalMs = intervalSeconds * 1000L;
+            if (elapsedMs < intervalMs) {
+                continue;
+            }
+
+            lastHourlyRewardTimes.put(pointId, now);
+
             TownyAPI api = TownyAPI.getInstance();
             if (api == null) {
                 this.getLogger().warning("TownyAPI is null!");
@@ -1932,21 +2195,47 @@ extends JavaPlugin {
             if (town == null) {
                 this.getLogger().warning("Town '" + point.getControllingTown() + "' not found, resetting point");
                 point.setControllingTown("");
-                if (!this.dynmapEnabled) continue;
+                if (!this.isDynmapEnabled()) continue;
                 this.townUpdater.updateMarker(point);
                 continue;
             }
             try {
                 double hourlyReward = calculateHourlyReward(point);
-                this.getLogger().info("Depositing " + hourlyReward + " to town " + town.getName());
+                if (debug) {
+                    this.getLogger().info("Depositing " + hourlyReward + " to town " + town.getName());
+                }
                 town.getAccount().deposit(hourlyReward, "Hourly reward for controlling " + point.getName());
-                this.getLogger().info("Gave " + hourlyReward + " to " + town.getName() + " for controlling " + point.getName() + " (hourly)");
+                if (debug) {
+                    this.getLogger().info("Gave " + hourlyReward + " to " + town.getName() + " for controlling " + point.getName() + " (hourly)");
+                }
+                
+                // Track reward statistics
+                if (statisticsManager != null) {
+                    statisticsManager.onRewardDistributed(
+                        point.getId(), 
+                        point.getName(), 
+                        town.getName(), 
+                        hourlyReward
+                    );
+                }
+                
+                // Send Discord webhook notification
+                if (discordWebhook != null) {
+                    discordWebhook.sendRewardsDistributed(
+                        point.getId(), 
+                        point.getName(), 
+                        town.getName(), 
+                        hourlyReward, 
+                        "hourly"
+                    );
+                }
+                
                 String message = Messages.get("messages.reward.hourly_distributed", Map.of(
                     "town", town.getName(),
                     "reward", String.format("%.1f", hourlyReward),
                     "zone", point.getName()
                 ));
-                Bukkit.broadcastMessage(message);
+                broadcastMessage(message);
             }
             catch (Exception e) {
                 this.getLogger().warning("Failed to give hourly reward to " + town.getName() + ": " + e.getMessage());
@@ -1956,11 +2245,24 @@ extends JavaPlugin {
     }
 
     private double calculateHourlyReward(CapturePoint point) {
-        String mode = this.config.getString("rewards.hourly-mode", "STATIC");
-        double base = point.getReward() / 24.0;
+        // Use zone-specific config, fallback to zone defaults
+        String mode = "STATIC";
+        if (zoneConfigManager != null) {
+            Object modeValue = zoneConfigManager.getZoneSetting(point.getId(), "rewards.hourly-mode", "STATIC");
+            if (modeValue != null) {
+                mode = modeValue.toString();
+            }
+        }
+        double base = getBaseReward(point) / 24.0;
         if ("DYNAMIC".equalsIgnoreCase(mode)) {
-            double min = this.config.getDouble("rewards.hourly-dynamic.min", base);
-            double max = this.config.getDouble("rewards.hourly-dynamic.max", base);
+            Object minValue = zoneConfigManager != null
+                ? zoneConfigManager.getZoneSetting(point.getId(), "rewards.hourly-dynamic.min", base)
+                : base;
+            Object maxValue = zoneConfigManager != null
+                ? zoneConfigManager.getZoneSetting(point.getId(), "rewards.hourly-dynamic.max", base)
+                : base;
+            double min = getDoubleSetting(minValue, base);
+            double max = getDoubleSetting(maxValue, base);
             if (max < min) {
                 max = min;
             }
@@ -1969,8 +2271,70 @@ extends JavaPlugin {
         return base;
     }
 
+    private String getRewardType(String pointId) {
+        if (zoneConfigManager == null || pointId == null) {
+            return "daily";
+        }
+        String value = zoneConfigManager.getString(pointId, "rewards.reward-type", "daily");
+        if (value == null) {
+            return "daily";
+        }
+        String normalized = value.trim();
+        if (!"daily".equalsIgnoreCase(normalized) && !"hourly".equalsIgnoreCase(normalized)) {
+            return "daily";
+        }
+        return normalized;
+    }
+
+    private boolean isHourlyReward(String pointId) {
+        return "hourly".equalsIgnoreCase(getRewardType(pointId));
+    }
+
+    private boolean isDailyReward(String pointId) {
+        return "daily".equalsIgnoreCase(getRewardType(pointId));
+    }
+
+    private int getHourlyIntervalSeconds(String pointId) {
+        if (zoneConfigManager == null || pointId == null) {
+            return 3600;
+        }
+        int interval = zoneConfigManager.getInt(pointId, "rewards.hourly-interval", 3600);
+        return Math.max(1, interval);
+    }
+
+    public double getBaseReward(CapturePoint point) {
+        if (point == null) {
+            return 0.0;
+        }
+        double fallback = point.getReward();
+        if (zoneConfigManager == null) {
+            return Math.max(0.0, fallback);
+        }
+        Object value = zoneConfigManager.getZoneSetting(point.getId(), "rewards.base-reward", fallback);
+        double reward = getDoubleSetting(value, fallback);
+        return Math.max(0.0, reward);
+    }
+
+    private double getDoubleSetting(Object value, double fallback) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value != null) {
+            try {
+                return Double.parseDouble(value.toString());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     public String getPointTypeName(String typeKey) {
         return this.pointTypes.getOrDefault(typeKey, "Strategic Point");
+    }
+    
+    public DiscordWebhook getDiscordWebhook() {
+        return this.discordWebhook;
     }
 
     public String colorize(String message) {
@@ -2081,7 +2445,7 @@ extends JavaPlugin {
     }
 
     public boolean isDynmapEnabled() {
-        return this.dynmapEnabled;
+        return !mapProviders.isEmpty();
     }
 
     public boolean isWorldGuardEnabled() {
@@ -2124,8 +2488,8 @@ extends JavaPlugin {
                 "zone", point.getName()
             ));
         }
-        Bukkit.broadcastMessage(message);
-        if (this.dynmapEnabled) {
+        broadcastMessage(message);
+        if (this.isDynmapEnabled()) {
             this.townUpdater.updateMarker(point);
         }
     }
@@ -2167,6 +2531,7 @@ extends JavaPlugin {
         }
         this.stopCapture(pointId.trim());
         this.capturePoints.remove(pointId.trim());
+        this.lastHourlyRewardTimes.remove(pointId.trim());
     }
 
     public void logCaptureAttempt(String pointId) {
@@ -2307,7 +2672,16 @@ extends JavaPlugin {
         if (!config.getBoolean("settings.show-chat-messages", true)) {
             return;
         }
-        Bukkit.broadcastMessage(colorize(message));
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        String formatted = colorize(message);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (disabledNotifications.getOrDefault(player.getUniqueId(), false)) {
+                continue;
+            }
+            player.sendMessage(formatted);
+        }
     }
 
     public void toggleChatMessages(boolean enabled) {
@@ -2335,6 +2709,13 @@ extends JavaPlugin {
             // Auto-show boundaries for new player if enabled
             if (TownyCapture.this.config.getBoolean("settings.auto-show-boundaries", true)) {
                 TownyCapture.this.autoShowBoundariesForPlayer(player);
+            }
+            
+            // Show update notification to admins
+            if (TownyCapture.this.getConfig().getBoolean("settings.check-for-updates", true) && 
+                player.hasPermission("capturepoints.admin.update-notify") &&
+                TownyCapture.this.updateChecker != null) {
+                TownyCapture.this.updateChecker.showUpdateNotification(player);
             }
         }
     }
@@ -2410,5 +2791,40 @@ extends JavaPlugin {
             default:
                 return reason; // Return original reason if not recognized
         }
+    }
+    
+    /**
+     * Get the statistics manager
+     */
+    public StatisticsManager getStatisticsManager() {
+        return statisticsManager;
+    }
+    
+    /**
+     * Get the statistics GUI
+     */
+    public StatisticsGUI getStatisticsGUI() {
+        return statisticsGUI;
+    }
+    
+    /**
+     * Get the zone configuration manager
+     */
+    public ZoneConfigManager getZoneConfigManager() {
+        return zoneConfigManager;
+    }
+    
+    /**
+     * Get the shop manager
+     */
+    public ShopManager getShopManager() {
+        return shopManager;
+    }
+    
+    /**
+     * Get the shop listener
+     */
+    public ShopListener getShopListener() {
+        return shopListener;
     }
 }

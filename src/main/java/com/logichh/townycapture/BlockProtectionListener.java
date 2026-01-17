@@ -27,9 +27,9 @@ implements Listener {
             if (blockWorld == null || !blockWorld.getUID().equals(point.getWorldUUID()) || !((chunkDistance = plugin.getChunkDistance(point.getLocation(), event.getBlock().getLocation())) <= (double)(point.getChunkRadius() + 1))) continue;
             event.setCancelled(true);
             if (chunkDistance <= (double)point.getChunkRadius()) {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.protection.break-in-zone", "&cYou cannot break blocks in capture zones!")));
+                plugin.sendNotification(player, Messages.get("protection.block-break-blocked"));
             } else {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.protection.break-in-buffer", "&cYou cannot break blocks in the buffer zone around capture zones!")));
+                plugin.sendNotification(player, Messages.get("protection.block-break-buffer-blocked"));
             }
             return;
         }
@@ -51,9 +51,9 @@ implements Listener {
             if (blockWorld == null || !blockWorld.getUID().equals(point.getWorldUUID()) || !((chunkDistance = plugin.getChunkDistance(point.getLocation(), event.getBlock().getLocation())) <= (double)(point.getChunkRadius() + 1))) continue;
             event.setCancelled(true);
             if (chunkDistance <= (double)point.getChunkRadius()) {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.protection.place-in-zone", "&cYou cannot place blocks in capture zones!")));
+                plugin.sendNotification(player, Messages.get("protection.block-place-blocked"));
             } else {
-                player.sendMessage(plugin.colorize(plugin.getConfig().getString("messages.protection.place-in-buffer", "&cYou cannot place blocks in the buffer zone around capture zones!")));
+                plugin.sendNotification(player, Messages.get("protection.block-place-buffer-blocked"));
             }
             return;
         }

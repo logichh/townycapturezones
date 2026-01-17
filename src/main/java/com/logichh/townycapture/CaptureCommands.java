@@ -253,6 +253,41 @@ public class CaptureCommands implements CommandExecutor {
                 }
                 runAllTests(player);
                 return true;
+            case "stats":
+                if (args.length == 1) {
+                    // Open stats GUI
+                    if (player == null) {
+                        sender.sendMessage(Messages.get("errors.player-only"));
+                        return true;
+                    }
+                    handleStatsCommand(player);
+                } else {
+                    // Admin stats commands
+                    if (!sender.hasPermission("capturepoints.admin.stats")) {
+                        sender.sendMessage(Messages.get("errors.no-permission"));
+                        return true;
+                    }
+                    handleAdminStatsCommand(sender, args);
+                }
+                return true;
+            case "zoneconfig":
+                if (!sender.hasPermission("capturepoints.admin.zoneconfig")) {
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return true;
+                }
+                if (args.length < 2) {
+                    sender.sendMessage(Messages.get("errors.usage-zoneconfig"));
+                    return true;
+                }
+                handleZoneConfigCommand(sender, args);
+                return true;
+            case "shop":
+                if (player == null) {
+                    sender.sendMessage(Messages.get("errors.player-only"));
+                    return true;
+                }
+                handleShopCommand(player, args);
+                return true;
             default:
                 sendHelp(sender);
                 return true;
@@ -279,6 +314,12 @@ public class CaptureCommands implements CommandExecutor {
 
         if (plugin.deleteCapturePoint(pointId)) {
             sender.sendMessage(Messages.get("admin.point-deleted"));
+            
+            // Send Discord webhook notification for zone deletion
+            if (plugin.getDiscordWebhook() != null) {
+                String deletedBy = (sender instanceof Player) ? ((Player) sender).getName() : "Console";
+                plugin.getDiscordWebhook().sendZoneDeleted(pointId, pointId, deletedBy);
+            }
         } else {
             sender.sendMessage(Messages.get("messages.errors.point_not_found"));
         }
@@ -395,7 +436,7 @@ public class CaptureCommands implements CommandExecutor {
         player.sendMessage(Messages.get("messages.info.point-id", Map.of("id", point.getId())));
         player.sendMessage(Messages.get("messages.info.point-type", Map.of("type", point.getType())));
         player.sendMessage(Messages.get("messages.info.point-radius", Map.of("radius", String.valueOf(point.getChunkRadius()))));
-        player.sendMessage(Messages.get("messages.info.point-reward", Map.of("reward", String.valueOf(point.getReward()))));
+        player.sendMessage(Messages.get("messages.info.point-reward", Map.of("reward", String.valueOf(plugin.getBaseReward(point)))));
         player.sendMessage(Messages.get("messages.info.controlling-town", Map.of("town", point.getControllingTown().isEmpty() ? "None" : point.getControllingTown())));
         if (this.plugin.getActiveSessions().containsKey(pointId)) {
             CaptureSession session = this.plugin.getActiveSessions().get(pointId);
@@ -508,6 +549,12 @@ public class CaptureCommands implements CommandExecutor {
             
             plugin.createCapturePoint(id, type, player.getLocation(), chunkRadius, reward);
             player.sendMessage(Messages.get("messages.create.success"));
+            
+            // Send Discord webhook notification for zone creation
+            if (plugin.getDiscordWebhook() != null) {
+                plugin.getDiscordWebhook().sendZoneCreated(id, id, player.getName(), type, chunkRadius, reward);
+            }
+            
             Map<String, String> placeholders = new HashMap<>();
             placeholders.put("radius", String.valueOf(chunkRadius));
             placeholders.put("blocks", String.valueOf(chunkRadius * 16));
@@ -772,5 +819,360 @@ public class CaptureCommands implements CommandExecutor {
                 player.sendMessage(plugin.colorize("&c[FAIL] Normal capture failed"));
         }
         }, 20L);
+    }
+    
+    /**
+     * Handle /cap stats command (open GUI)
+     */
+    private void handleStatsCommand(Player player) {
+        if (plugin.getStatisticsGUI() == null) {
+            player.sendMessage(Messages.get("errors.stats-disabled"));
+            return;
+        }
+        
+        // Check cooldown
+        if (!plugin.getStatisticsGUI().canUseStatsCommand(player)) {
+            long remaining = plugin.getStatisticsGUI().getCooldownSeconds(player);
+            player.sendMessage(Messages.get("errors.stats-cooldown", Map.of("seconds", String.valueOf(remaining))));
+            return;
+        }
+        
+        // Set cooldown and open menu
+        plugin.getStatisticsGUI().setCooldown(player);
+        plugin.getStatisticsGUI().openMainMenu(player);
+    }
+    
+    /**
+     * Handle admin stats commands
+     */
+    private void handleAdminStatsCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Messages.get("errors.usage-stats-admin"));
+            return;
+        }
+        
+        String subCmd = args[1].toLowerCase();
+        
+        switch (subCmd) {
+            case "remove":
+                if (args.length < 3) {
+                    sender.sendMessage(Messages.get("errors.usage-stats-remove"));
+                    return;
+                }
+                handleStatsRemove(sender, args[2]);
+                break;
+                
+            case "reset":
+                if (args.length < 3 || !args[2].equals("CONFIRM")) {
+                    sender.sendMessage(Messages.get("errors.stats-reset-confirm"));
+                    return;
+                }
+                handleStatsReset(sender);
+                break;
+                
+            default:
+                sender.sendMessage(Messages.get("errors.usage-stats-admin"));
+                break;
+        }
+    }
+    
+    /**
+     * Remove player statistics
+     */
+    private void handleStatsRemove(CommandSender sender, String playerName) {
+        if (plugin.getStatisticsManager() == null) {
+            sender.sendMessage(Messages.get("errors.stats-disabled"));
+            return;
+        }
+        
+        Player target = Bukkit.getPlayer(playerName);
+        if (target == null) {
+            sender.sendMessage(Messages.get("errors.player-not-found", Map.of("player", playerName)));
+            return;
+        }
+        
+        plugin.getStatisticsManager().removePlayerStats(target.getUniqueId());
+        sender.sendMessage(Messages.get("messages.stats-removed", Map.of("player", playerName)));
+    }
+    
+    /**
+     * Reset all statistics
+     */
+    private void handleStatsReset(CommandSender sender) {
+        if (plugin.getStatisticsManager() == null) {
+            sender.sendMessage(Messages.get("errors.stats-disabled"));
+            return;
+        }
+        
+        plugin.getStatisticsManager().resetAllStats();
+        sender.sendMessage(Messages.get("messages.stats-reset"));
+    }
+    
+    /**
+     * Handle zone config commands
+     * Usage: /cap zoneconfig <zone_id> <subcommand> [args]
+     * Subcommands:
+     *   set <path> <value> - Set a zone-specific config value
+     *   reset <path> - Reset a config path to default (or reset all if no path)
+     *   reload - Reload the zone config from disk
+     */
+    private void handleZoneConfigCommand(CommandSender sender, String[] args) {
+        String zoneId = args[1];
+        
+        // Verify zone exists
+        CapturePoint point = plugin.getCapturePoint(zoneId);
+        if (point == null) {
+            sender.sendMessage(Messages.get("errors.zone-not-found", Map.of("id", zoneId)));
+            return;
+        }
+        
+        if (args.length < 3) {
+            sender.sendMessage(Messages.get("errors.usage-zoneconfig"));
+            return;
+        }
+        
+        String subCmd = args[2].toLowerCase();
+        
+        switch (subCmd) {
+            case "set":
+                if (!sender.hasPermission("capturepoints.admin.zoneconfig.set")) {
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 5) {
+                    sender.sendMessage("§cUsage: /cap zoneconfig <zone_id> set <path> <value>");
+                    return;
+                }
+                handleZoneConfigSet(sender, zoneId, args[3], args[4]);
+                break;
+                
+            case "reset":
+                if (!sender.hasPermission("capturepoints.admin.zoneconfig.reset")) {
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length >= 4) {
+                    handleZoneConfigReset(sender, zoneId, args[3]);
+                } else {
+                    handleZoneConfigReset(sender, zoneId, null);
+                }
+                break;
+                
+            case "reload":
+                if (!sender.hasPermission("capturepoints.admin.zoneconfig.reload")) {
+                    sender.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                handleZoneConfigReload(sender, zoneId);
+                break;
+                
+            default:
+                sender.sendMessage(Messages.get("errors.usage-zoneconfig"));
+                break;
+        }
+    }
+    
+    /**
+     * Set a zone-specific config value
+     */
+    private void handleZoneConfigSet(CommandSender sender, String zoneId, String path, String value) {
+        try {
+            // Try to parse value as different types
+            Object parsedValue;
+            if (value.equalsIgnoreCase("true") || value.equalsIgnoreCase("false")) {
+                parsedValue = Boolean.parseBoolean(value);
+            } else if (value.matches("-?\\d+")) {
+                parsedValue = Integer.parseInt(value);
+            } else if (value.matches("-?\\d+\\.\\d+")) {
+                parsedValue = Double.parseDouble(value);
+            } else {
+                parsedValue = value;
+            }
+            
+            // Set the value in zone config
+            plugin.getZoneConfigManager().setZoneSetting(zoneId, path, parsedValue);
+            plugin.getZoneConfigManager().saveZoneConfig(zoneId);
+            
+            sender.sendMessage(String.format("§aSet zone config: %s.%s = %s", zoneId, path, value));
+            plugin.getLogger().info(String.format("Zone config updated by %s: %s.%s = %s", 
+                sender.getName(), zoneId, path, value));
+        } catch (Exception e) {
+            sender.sendMessage("§cFailed to set config value: " + e.getMessage());
+            plugin.getLogger().warning("Failed to set zone config: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Reset zone config to defaults
+     */
+    private void handleZoneConfigReset(CommandSender sender, String zoneId, String path) {
+        try {
+            if (path == null) {
+                // Regenerate entire config from the zone template
+                plugin.getZoneConfigManager().generateZoneConfig(zoneId);
+                sender.sendMessage(String.format("§aReset all config values for zone: %s", zoneId));
+                plugin.getLogger().info(String.format("Zone config fully reset by %s: %s", sender.getName(), zoneId));
+            } else {
+                // Reset specific path to default
+                Object defaultValue = plugin.getZoneConfigManager().getZoneDefault(path);
+                plugin.getZoneConfigManager().setZoneSetting(zoneId, path, defaultValue);
+                plugin.getZoneConfigManager().saveZoneConfig(zoneId);
+                sender.sendMessage(String.format("§aReset zone config path: %s.%s", zoneId, path));
+                plugin.getLogger().info(String.format("Zone config path reset by %s: %s.%s", sender.getName(), zoneId, path));
+            }
+        } catch (Exception e) {
+            sender.sendMessage("§cFailed to reset config: " + e.getMessage());
+            plugin.getLogger().warning("Failed to reset zone config: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Reload zone config from disk
+     */
+    private void handleZoneConfigReload(CommandSender sender, String zoneId) {
+        try {
+            plugin.getZoneConfigManager().loadZoneConfig(zoneId);
+            sender.sendMessage(String.format("§aReloaded config for zone: %s", zoneId));
+            plugin.getLogger().info(String.format("Zone config reloaded by %s: %s", sender.getName(), zoneId));
+        } catch (Exception e) {
+            sender.sendMessage("§cFailed to reload config: " + e.getMessage());
+            plugin.getLogger().warning("Failed to reload zone config: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Handle shop commands
+     */
+    private void handleShopCommand(Player player, String[] args) {
+        ShopManager shopManager = plugin.getShopManager();
+        if (shopManager == null) {
+            player.sendMessage(Messages.get("errors.shop.system-disabled"));
+            return;
+        }
+        
+        // /cap shop - Open nearest zone shop
+        if (args.length == 1) {
+            CapturePoint nearestZone = findNearestZone(player);
+            if (nearestZone == null) {
+                player.sendMessage(Messages.get("errors.shop.no-zone-nearby"));
+                return;
+            }
+            
+            ShopListener listener = plugin.getShopListener();
+            if (listener != null) {
+                listener.openShop(player, nearestZone.getId());
+            }
+            return;
+        }
+        
+        String subCommand = args[1].toLowerCase();
+        
+        switch (subCommand) {
+            case "edit":
+                // /cap shop edit <zone_id> - Open editor
+                if (!player.hasPermission("capturepoints.admin.shop")) {
+                    player.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 3) {
+                    player.sendMessage(Messages.get("errors.shop.usage-edit"));
+                    return;
+                }
+                String zoneId = args[2];
+                if (plugin.getCapturePoint(zoneId) == null) {
+                    player.sendMessage(Messages.get("errors.zone-not-found"));
+                    return;
+                }
+                ShopListener listener = plugin.getShopListener();
+                if (listener != null) {
+                    listener.openEditor(player, zoneId);
+                }
+                break;
+                
+            case "reload":
+                // /cap shop reload <zone_id> - Reload shop config
+                if (!player.hasPermission("capturepoints.admin.shop")) {
+                    player.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 3) {
+                    player.sendMessage(Messages.get("errors.shop.usage-reload"));
+                    return;
+                }
+                shopManager.saveShop(args[2]);
+                shopManager.loadAllShops();
+                player.sendMessage(Messages.get("messages.shop.reloaded", Map.of("zone", args[2])));
+                break;
+                
+            case "restock":
+                // /cap shop restock <zone_id> - Manual restock
+                if (!player.hasPermission("capturepoints.admin.shop.restock")) {
+                    player.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 3) {
+                    player.sendMessage(Messages.get("errors.shop.usage-restock"));
+                    return;
+                }
+                shopManager.restockShop(args[2]);
+                player.sendMessage(Messages.get("messages.shop.restocked", Map.of("zone", args[2])));
+                break;
+                
+            case "enable":
+                // /cap shop enable <zone_id> - Enable shop
+                if (!player.hasPermission("capturepoints.admin.shop")) {
+                    player.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 3) {
+                    player.sendMessage(Messages.get("errors.shop.usage-enable"));
+                    return;
+                }
+                ShopData enableShop = shopManager.getShop(args[2]);
+                enableShop.setEnabled(true);
+                shopManager.saveShop(args[2]);
+                player.sendMessage(Messages.get("messages.shop.enabled", Map.of("zone", args[2])));
+                break;
+                
+            case "disable":
+                // /cap shop disable <zone_id> - Disable shop
+                if (!player.hasPermission("capturepoints.admin.shop")) {
+                    player.sendMessage(Messages.get("errors.no-permission"));
+                    return;
+                }
+                if (args.length < 3) {
+                    player.sendMessage(Messages.get("errors.shop.usage-disable"));
+                    return;
+                }
+                ShopData disableShop = shopManager.getShop(args[2]);
+                disableShop.setEnabled(false);
+                shopManager.saveShop(args[2]);
+                player.sendMessage(Messages.get("messages.shop.disabled", Map.of("zone", args[2])));
+                break;
+                
+            default:
+                player.sendMessage(Messages.get("errors.shop.invalid-subcommand"));
+                break;
+        }
+    }
+    
+    /**
+     * Find nearest capture zone to player
+     */
+    private CapturePoint findNearestZone(Player player) {
+        CapturePoint nearest = null;
+        double nearestDist = Double.MAX_VALUE;
+        
+        for (CapturePoint point : plugin.getCapturePoints().values()) {
+            if (point.getLocation().getWorld() != player.getWorld()) continue;
+            
+            double dist = point.getLocation().distance(player.getLocation());
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = point;
+            }
+        }
+        
+        return nearestDist <= 100 ? nearest : null; // Within 100 blocks
     }
 }

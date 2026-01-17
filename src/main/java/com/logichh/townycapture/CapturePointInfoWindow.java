@@ -14,7 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class CapturePointInfoWindow {
     public static String formatInfoWindow(CapturePoint point) {
         TownyCapture plugin = (TownyCapture)TownyCapture.getPlugin(TownyCapture.class);
-        FileConfiguration config = plugin.getConfig();
+        ZoneConfigManager zoneManager = plugin.getZoneConfigManager();
         String controllingTown = point.getControllingTown();
         boolean isActive = plugin.getActiveSessions().containsKey(point.getId());
         CaptureSession session = isActive ? plugin.getActiveSessions().get(point.getId()) : null;
@@ -24,27 +24,32 @@ public class CapturePointInfoWindow {
         if (isActive) {
             controllingTown = session.getTownName();
             statusText = com.logichh.townycapture.Messages.get("dynmap.infowindow.status.capturing");
-            statusColor = config.getString("infowindow.colors.capturing", "#FFAA00");
+            statusColor = zoneManager != null
+                ? zoneManager.getString(point.getId(), "infowindow.colors.capturing", "#FFAA00")
+                : "#FFAA00";
             String townColor = CapturePointInfoWindow.getTownColor(controllingTown);
             if (townColor != null) {
                 statusColor = townColor;
             }
         } else if (controllingTown == null || controllingTown.isEmpty()) {
             statusText = com.logichh.townycapture.Messages.get("dynmap.infowindow.status.unclaimed");
-            statusColor = config.getString("infowindow.colors.unclaimed", "#FF0000");
+            statusColor = zoneManager != null
+                ? zoneManager.getString(point.getId(), "infowindow.colors.unclaimed", "#FF0000")
+                : "#FF0000";
         } else {
             statusText = com.logichh.townycapture.Messages.get("dynmap.infowindow.status.controlled");
-            statusColor = config.getString("infowindow.colors.controlled", "#00FF00");
+            statusColor = zoneManager != null
+                ? zoneManager.getString(point.getId(), "infowindow.colors.controlled", "#00FF00")
+                : "#00FF00";
             String townColor = CapturePointInfoWindow.getTownColor(controllingTown);
             if (townColor != null) {
                 statusColor = townColor;
             }
         }
 
-        String template = config.getString("dynmap.infowindow.template");
-        if (template == null || template.isEmpty()) {
-            template = config.getString("infowindow.template", com.logichh.townycapture.Messages.get("dynmap.infowindow.template"));
-        }
+        String template = zoneManager != null
+            ? zoneManager.getString(point.getId(), "infowindow.template", com.logichh.townycapture.Messages.get("dynmap.infowindow.template"))
+            : com.logichh.townycapture.Messages.get("dynmap.infowindow.template");
         if (template == null || template.isEmpty()) {
             template = "<div class=\"regioninfo\"><div style=\"font-size:120%; font-weight:bold; color:%control_color%;\">%control_status% %controlling_town%</div><div style=\"font-size:115%; margin-top:5px;\">%name%</div><div>\u2022 %label_type% - %type%</div><div>\u2022 %label_active%: %active_status%</div><div>\u2022 %label_prep_time% - %prep_time% minutes</div><div>\u2022 %label_capture_time% - %capture_time% minutes</div><div>\u2022 %label_reward% - %reward%</div></div>";
         }
@@ -55,10 +60,18 @@ public class CapturePointInfoWindow {
         replacements.put("%name%", point.getName());
         replacements.put("%type%", plugin.getPointTypeName(point.getType()));
         replacements.put("%active_status%", isActive ? com.logichh.townycapture.Messages.get("dynmap.infowindow.active.yes") : com.logichh.townycapture.Messages.get("dynmap.infowindow.active.no"));
-        replacements.put("%prep_time%", String.valueOf(plugin.getConfig().getInt("preparation_time", 5)));
-        replacements.put("%capture_time%", String.valueOf(plugin.getConfig().getInt("capture_time", 30)));
-        replacements.put("%reward%", String.valueOf(point.getReward()));
-        replacements.put("%item_payout%", plugin.getConfig().getString("dynmap.infowindow.item-payout-placeholder", "None"));
+        int prepTime = zoneManager != null
+            ? zoneManager.getInt(point.getId(), "capture.preparation.duration", 1)
+            : 1;
+        int captureTime = zoneManager != null
+            ? zoneManager.getInt(point.getId(), "capture.capture.duration", 15)
+            : 15;
+        replacements.put("%prep_time%", String.valueOf(prepTime));
+        replacements.put("%capture_time%", String.valueOf(captureTime));
+        replacements.put("%reward%", String.valueOf(plugin.getBaseReward(point)));
+        replacements.put("%item_payout%", zoneManager != null
+            ? zoneManager.getString(point.getId(), "infowindow.item-payout-placeholder", "None")
+            : "None");
         replacements.put("%control_color%", statusColor);
         replacements.put("%label_type%", com.logichh.townycapture.Messages.get("dynmap.infowindow.label.type"));
         replacements.put("%label_active%", com.logichh.townycapture.Messages.get("dynmap.infowindow.label.active"));

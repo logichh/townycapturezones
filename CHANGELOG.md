@@ -1,5 +1,221 @@
 # TownyCapture - Change Log
 
+## Version 1.1.0 - [2026-01-16]
+
+### Wiki
+
+- Updated wiki
+
+### Added
+
+#### 🔔 Discord Webhook Integration
+Real-time Discord notifications for all capture zone events with rich embeds and full customization!
+
+- **13 Alert Types**: capture-started, capture-completed, capture-failed, capture-cancelled, rewards-distributed, first-capture-bonus, reinforcement-phases, player-death, zone-created, zone-deleted, weekly-reset, new-records, milestones
+- **Rich Embeds**: Color-coded embeds with structured fields, titles, and footers
+- **Individual Toggles**: Enable/disable each alert type independently
+- **Privacy Controls**: Hide coordinates and/or reward amounts in messages
+- **Role Mentions**: Optional Discord role pings for important events
+- **Per-Zone Rate Limiting**: Prevents spam from same zone (configurable ms)
+- **Async Execution**: Non-blocking HTTP requests won't lag server
+- **Fallback Mode**: Plain text messages if embeds disabled
+- **Configuration**: Complete control via `discord:` section in config.yml
+
+**Alert Colors:**
+- 🟡 Yellow - Capture started
+- 🟢 Green - Capture completed
+- 🔴 Red - Capture failed, reinforcements
+- 🟠 Orange - Capture cancelled
+- 🟡 Gold - Rewards distributed
+- 🟤 Dark Orange - First capture bonus
+- ⚫ Dark Gray - Player deaths
+- 🔵 Cyan - Zone created
+- ⚫ Gray - Zone deleted
+- 🟣 Magenta - Weekly reset
+- 🟡 Goldenrod - New records
+- 🟣 Pink - Milestones
+
+#### 📊 Modular Per-Zone Configurations
+Each capture zone can now have its own dedicated config file!
+
+- **Auto-Generation**: Zone configs automatically created as `{zone_id}_config.yml` when zones are created
+- **Zone-Specific Settings**: Customize rewards, reinforcements, and mechanics per zone
+- **Global Defaults**: `zone-template.yml` contains template for new zones
+- **Automatic Migration**: Existing zones get configs generated on first load
+- **Fallback System**: Uses zone-defaults if zone config is missing or invalid
+- **Backup on Delete**: Zone deletion creates `{zone_id}_config.yml.backup`
+- **ZoneConfigManager**: New manager class handles lifecycle and access
+
+#### 📈 Comprehensive Statistics System
+Track and visualize all capture zone activity!
+
+- **Interactive GUI**: 54-slot menus with category-based navigation
+- **6 Categories**: Captures, Combat, Control, Economy, Activity, Records
+- **Player Stats**: Captures, kills, deaths, K/D ratio, mob kills, streaks
+- **Town Stats**: Total captures, hold time, rewards earned, simultaneous zones
+- **Zone Stats**: Captures, control time, deaths, fastest/longest captures
+- **Server Records**: All-time bests, milestones, first capture tracking
+- **Leaderboards**: Top 10 rankings in each category with pagination
+- **Real-Time Tracking**: Capture events, combat, rewards, all logged automatically
+- **JSON Persistence**: Auto-save every 5 minutes (configurable)
+- **5-Minute Cooldown**: Prevents spam on `/cap stats` command (admins bypass)
+- **Admin Tools**: Remove player stats or reset all statistics
+
+#### 🗺️ BlueMap Integration
+Full support for BlueMap as an alternative to Dynmap!
+
+- Run Dynmap, BlueMap, both, or neither
+- 100% optional - works without any map plugin installed
+- Automatic marker synchronization across both maps
+- Configurable styles and colors per map provider
+- Independent enable/disable controls for each map plugin
+
+#### 🎭 MythicMobs Integration
+Full support for MythicMobs custom mobs as reinforcements!
+
+- 100% optional - vanilla mobs works without MythicMobs installed
+- Configure custom mob types in <zone-id>.config.yml
+- Set mob levels for difficulty scaling
+- Seamless integration with existing reinforcement system
+
+#### 🛒 Zone Shop System
+Per-zone player shops with full economy integration and dynamic pricing!
+
+- **100% Optional**: Global toggle in config.yml (`shops.enabled: false` by default)
+- **Per-Zone Shops**: Each zone can have its own independent shop
+- **GUI-Based Admin Editor**: No complex commands - configure shops visually with GUIs
+- **Buy & Sell**: Support for both purchase and sale of items
+- **Quantity Selectors**: Visual selection (1, 2, 3, 5, 10, 16, 32, 64 items)
+- **5 Configuration Dimensions** per shop:
+  - **Access Mode**: ALWAYS / CONTROLLED_ONLY / OWNER_ONLY (who can access)
+  - **Stock System**: INFINITE / LIMITED / FINITE (stock behavior)
+  - **Layout Mode**: SINGLE_PAGE / CATEGORIES / PAGINATED (organization)
+  - **Pricing Mode**: FIXED / DYNAMIC (price behavior)
+  - **Restock Schedule**: HOURLY / DAILY / WEEKLY / MANUAL (when stock replenishes)
+- **Dynamic Pricing**: Multi-factor algorithm (stock level + demand + time decay)
+- **Stock Management**: Configure max stock per item, auto-restock on schedule
+- **Category Organization**: Group items for easier browsing
+- **Economy Integration**: Uses Towny account system (same as rewards)
+- **Transaction Tracking**: Per-shop statistics (total buys, sells, revenue)
+- **Visual Feedback**: Green panes for buy, red panes for sell
+- **Persistence**: Each shop saved as `{zone_id}_shop.yml`
+
+**Shop Features:**
+- Player-facing shop GUI with category navigation
+- Admin editor with visual settings panels
+- Per-item configuration (buyable/sellable, prices, stock limits, categories)
+- Real-time price display with total cost calculation
+- Stock availability indicators
+- Manual restock capability for admins
+
+**Dynamic Pricing Algorithm:**
+- Factor 1: Stock level (low stock = higher prices)
+- Factor 2: Transaction frequency (high demand = higher prices)
+- Factor 3: Time-based decay (gradual return to base prices)
+- Configurable sensitivity and min/max multipliers (default: 0.5x to 2.0x)
+
+### Commands Added
+- `/cap zoneconfig <zone_id> set <path> <value>` - Set zone-specific config value
+- `/cap zoneconfig <zone_id> reset [path]` - Reset zone config to defaults
+- `/cap zoneconfig <zone_id> reload` - Reload zone config from disk
+- `/cap stats` - Open interactive statistics GUI
+- `/cap stats remove <player>` - Remove a player's statistics (admin)
+- `/cap stats reset CONFIRM` - Reset all server statistics (admin)
+- `/cap shop` - Open nearest zone shop (player)
+- `/cap shop edit <zone_id>` - Open shop editor GUI (admin)
+- `/cap shop reload <zone_id>` - Reload shop configuration (admin)
+- `/cap shop restock <zone_id>` - Manually restock shop (admin)
+- `/cap shop enable <zone_id>` - Enable shop for zone (admin)
+- `/cap shop disable <zone_id>` - Disable shop for zone (admin)
+
+### Permissions Added
+- `capturepoints.admin.zoneconfig` - Access zone config commands
+- `capturepoints.admin.zoneconfig.set` - Set zone config values
+- `capturepoints.admin.zoneconfig.reset` - Reset zone configs
+- `capturepoints.admin.zoneconfig.reload` - Reload zone configs
+- `capturepoints.admin.stats` - Manage statistics (remove/reset)
+- `capturepoints.admin.stats.nocooldown` - Bypass stats command cooldown
+- `capturepoints.shop.use` - Access and use zone shops (default: true)
+- `capturepoints.admin.shop` - Manage zone shops (edit, enable, disable, reload)
+- `capturepoints.admin.shop.restock` - Manually restock zone shops
+
+### Configuration Added
+```yaml
+# NEW: zone-defaults section in config.yml
+zone-defaults:
+  rewards:
+    hourly-mode: STATIC
+    hourly-dynamic:
+      min: 50
+      max: 100
+  reinforcements:
+    enabled: true
+    mobs-per-wave: 1
+    max-mobs-per-point: 50
+
+statistics:
+  enabled: true
+  auto-save-interval: 300  # Save stats every 5 minutes
+  command-cooldown: 300    # 5-minute cooldown on /cap stats
+
+# NEW: Shop system configuration
+shops:
+  enabled: false  # Global toggle - 100% optional
+  defaults:
+    access-mode: "ALWAYS"        # ALWAYS / CONTROLLED_ONLY / OWNER_ONLY
+    stock-system: "INFINITE"     # INFINITE / LIMITED / FINITE
+    layout-mode: "SINGLE_PAGE"   # SINGLE_PAGE / CATEGORIES / PAGINATED
+    pricing-mode: "FIXED"        # FIXED / DYNAMIC
+    restock-schedule: "HOURLY"   # HOURLY / DAILY / WEEKLY / MANUAL
+  dynamic-pricing:
+    sensitivity: 0.1              # Price variation sensitivity
+    min-multiplier: 0.5           # Minimum price (50% of base)
+    max-multiplier: 2.0           # Maximum price (200% of base)
+```
+
+### Technical Implementation
+- `ZoneConfigManager.java` - Manages per-zone config files with fallback to zone-defaults
+- Refactored reward calculation to use zone-specific settings (`calculateHourlyReward`)
+- Refactored reinforcement spawning to use zone configs (`ReinforcementListener`)
+- Zone creation auto-generates config from zone-defaults template
+- Zone deletion backs up config as `.backup` file
+- Added `getZoneConfigManager()` accessor to `TownyCapture`
+- Updated `CaptureCommands` with zone config admin command routing
+- Enhanced `CaptureCommandTabCompleter` with zone config tab completion
+- `StatisticsData.java` - Comprehensive data models (PlayerStats, TownStats, ZoneStats, ServerRecords)
+- `StatisticsManager.java` - Core tracking, persistence, and query engine
+- `StatisticsGUI.java` - Interactive menu system with category navigation
+- `StatisticsGUIListener.java` - Inventory click and close event handling
+- `StatisticsTrackingListener.java` - Combat tracking within capture zones
+- Integrated tracking hooks in capture lifecycle (start, complete, fail)
+- Integrated reward distribution tracking (hourly and one-time)
+- On-demand calculation with HashMap-based storage for efficiency
+- `ShopItemConfig.java` - Item configuration with stock management, pricing state, and YAML persistence
+- `ShopData.java` - Shop data container with 5 configuration enums and complete YAML serialization
+- `DynamicPricing.java` - Multi-factor pricing engine with stock, demand, and time decay algorithms
+- `ShopManager.java` - Core shop logic with transaction processing, access control, Towny economy integration, auto-restock tasks
+- `ShopGUI.java` - Player shop browsing interface with quantity selectors and visual feedback (318 lines)
+- `ShopEditorGUI.java` - Admin configuration GUI with visual settings panels and item placement (413 lines)
+- `ShopListener.java` - GUI click event handling for both player and admin interfaces (305 lines)
+- Integrated shop initialization and cleanup in `TownyCapture` onEnable/onDisable
+- Shop data persisted as `{zone_id}_shop.yml` in `plugins/TownyCapture/shops/` directory
+- Periodic tasks: auto-restock every 5 minutes, dynamic pricing updates every hour
+
+### Localization
+Added messages to `lang/en.json`:
+- Discord webhook notification messages and labels
+- Zone config command usage and error messages
+- Statistics GUI labels and navigation text
+- BlueMap integration messages
+- MythicMobs integration messages
+- Error messages for disabled features and cooldowns
+- Success messages for admin operations
+- Shop GUI titles and navigation labels (10 messages)
+- Shop transaction messages (buy/sell success, 2 messages)
+- Shop management messages (restocked, saved, enabled, disabled, reloaded, 5 messages)
+- Shop error messages (11 messages for access, stock, funds, etc.)
+- Shop command usage messages (5 messages)
+
 ## Version 1.0.8 - [2025-12-02]
 
 ### Fixed

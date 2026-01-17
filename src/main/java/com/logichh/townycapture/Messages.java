@@ -80,7 +80,13 @@ public class Messages {
                     JsonObject json = GSON.fromJson(reader, JsonObject.class);
                     if (json != null) {
                         Map<String, Object> translations = parseJsonObject(json);
-                        languageCache.put(langCode, translations);
+                        Map<String, Object> bundled = loadBundledLanguage(langCode);
+                        if (bundled != null) {
+                            bundled.putAll(translations);
+                            languageCache.put(langCode, bundled);
+                        } else {
+                            languageCache.put(langCode, translations);
+                        }
                         plugin.getLogger().info("Loaded language: " + langCode);
                     }
                 } catch (IOException | JsonSyntaxException e) {
@@ -131,17 +137,31 @@ public class Messages {
      * Loads the default English translations from the jar.
      */
     private static void loadDefaultEnglish() {
-        try (InputStream in = plugin.getResource("lang/en.json");
-             InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-            JsonObject json = GSON.fromJson(reader, JsonObject.class);
-            if (json != null) {
-                Map<String, Object> translations = parseJsonObject(json);
-                languageCache.put(DEFAULT_LANG, translations);
-                plugin.getLogger().info("Loaded default English language");
+        Map<String, Object> translations = loadBundledLanguage(DEFAULT_LANG);
+        if (translations != null) {
+            languageCache.put(DEFAULT_LANG, translations);
+            plugin.getLogger().info("Loaded default English language");
+            return;
+        }
+        plugin.getLogger().log(Level.SEVERE, "Failed to load default English language file");
+    }
+
+    private static Map<String, Object> loadBundledLanguage(String langCode) {
+        String resourcePath = LANG_DIR + "/" + langCode + ".json";
+        try (InputStream in = plugin.getResource(resourcePath)) {
+            if (in == null) {
+                return null;
+            }
+            try (InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                if (json != null) {
+                    return parseJsonObject(json);
+                }
             }
         } catch (IOException | JsonSyntaxException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to load default English language file", e);
+            plugin.getLogger().log(Level.WARNING, "Failed to load bundled language file: " + resourcePath, e);
         }
+        return null;
     }
 
     /**

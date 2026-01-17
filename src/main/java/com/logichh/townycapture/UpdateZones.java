@@ -75,8 +75,8 @@ public class UpdateZones {
         if (this.plugin.getActiveSessions().containsKey(point.getId())) {
             CaptureSession session = this.plugin.getActiveSessions().get(point.getId());
             townName = session.getTownName();
-            fillColor = this.parseColor(this.plugin.getConfig().getString("colors.capturing-fill", "#FF0000"), 0xFF0000);
-            strokeColor = this.parseColor(this.plugin.getConfig().getString("colors.capturing-border", "#FF0000"), 0xFF0000);
+            fillColor = this.parseColor(this.getZoneColor(point, "colors.capturing-fill", "#FF0000"), 0xFF0000);
+            strokeColor = this.parseColor(this.getZoneColor(point, "colors.capturing-border", "#FF0000"), 0xFF0000);
         } else {
             townName = point.getControllingTown();
             if (townName != null && !townName.isEmpty()) {
@@ -85,12 +85,12 @@ public class UpdateZones {
                     fillColor = colors[0];
                     strokeColor = colors[1];
                 } else {
-                    fillColor = this.parseColor(this.plugin.getConfig().getString("colors.claimed-fill", "#0000FF"), 255);
-                    strokeColor = this.parseColor(this.plugin.getConfig().getString("colors.claimed-border", "#FF0000"), 0xFF0000);
+                    fillColor = this.parseColor(this.getZoneColor(point, "colors.claimed-fill", "#0000FF"), 255);
+                    strokeColor = this.parseColor(this.getZoneColor(point, "colors.claimed-border", "#FF0000"), 0xFF0000);
                 }
             } else {
-                fillColor = this.parseColor(this.plugin.getConfig().getString("colors.unclaimed-fill", "#8B0000"), 0x8B0000); // Dark red
-                strokeColor = this.parseColor(this.plugin.getConfig().getString("colors.unclaimed-border", "#404040"), 0x404040); // Dark gray border
+                fillColor = this.parseColor(this.getZoneColor(point, "colors.unclaimed-fill", "#8B0000"), 0x8B0000); // Dark red
+                strokeColor = this.parseColor(this.getZoneColor(point, "colors.unclaimed-border", "#404040"), 0x404040); // Dark gray border
             }
         }
         String label = this.createMarkerLabel(point);
@@ -118,7 +118,10 @@ public class UpdateZones {
         String markerId = "center_" + point.getId();
         Marker marker = this.markerSet.findMarker(markerId);
         Location center = point.getLocation();
-        String iconName = this.plugin.getConfig().getString("dynmap.center-marker.icon", "chest");
+        String iconName = this.plugin.getConfig().getString("dynmap.center-marker.icon");
+        if (iconName == null || iconName.trim().isEmpty()) {
+            iconName = this.plugin.getConfig().getString("dynmap.icon", "skull");
+        }
         boolean showLabel = this.plugin.getConfig().getBoolean("dynmap.center-marker.show-label", true);
         String labelFormat = this.plugin.getConfig().getString("dynmap.center-marker.label-format", "%name%");
         DynmapAPI dynmap = (DynmapAPI)this.plugin.getServer().getPluginManager().getPlugin("dynmap");
@@ -134,7 +137,7 @@ public class UpdateZones {
         
         // Try multiple icon names as fallbacks for better compatibility
         MarkerIcon icon = null;
-        String[] iconTryOrder = {iconName, "chest", "skull", "pointer", "signpost", "man"};
+        String[] iconTryOrder = {iconName, "skull", "chest", "pointer", "signpost", "man"};
         for (String tryIcon : iconTryOrder) {
             icon = markerAPI.getMarkerIcon(tryIcon);
             if (icon != null) {
@@ -210,6 +213,14 @@ public class UpdateZones {
             this.plugin.getLogger().warning("Error getting town colors for " + townName + ": " + e.getMessage());
             return null;
         }
+    }
+
+    private String getZoneColor(CapturePoint point, String path, String defaultColor) {
+        ZoneConfigManager zoneManager = this.plugin.getZoneConfigManager();
+        if (zoneManager != null && point != null) {
+            return zoneManager.getString(point.getId(), path, defaultColor);
+        }
+        return this.plugin.getConfig().getString(path, defaultColor);
     }
 
     private int getColorFromName(String colorName) {

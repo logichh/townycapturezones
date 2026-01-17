@@ -9,6 +9,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
@@ -16,22 +17,38 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.*;
 
 public class ReinforcementListener implements Listener {
+    private static final String META_REINFORCEMENT = "capture_reinforcement";
+    private static final String META_SOURCE = "reinforcement_source";
+    private static final String META_MYTHIC_TYPE = "reinforcement_mythic_type";
+
     private final TownyCapture plugin;
     private final Map<String, List<UUID>> activeReinforcements = new HashMap<>();
     private final Map<String, BukkitTask> phaseTasks = new HashMap<>();
     private final Map<String, BukkitTask> trackingTasks = new HashMap<>();
     private final Map<String, Integer> currentPhase = new HashMap<>();
     private final Deque<SpawnRequest> spawnQueue = new ArrayDeque<>();
+    private final Map<String, Integer> pendingSpawns = new HashMap<>();
+    private final Random random = new Random();
     private BukkitTask spawnProcessorTask;
+    private MobSpawner mobSpawner;
 
     public ReinforcementListener(TownyCapture plugin) {
         this.plugin = plugin;
+    }
+    
+    /**
+     * Set the mob spawner implementation.
+     * This is called by TownyCapture during initialization.
+     */
+    public void setMobSpawner(MobSpawner mobSpawner) {
+        this.mobSpawner = mobSpawner;
+        plugin.getLogger().info("Reinforcement mob spawner set to: " + mobSpawner.getName());
     }
 
     @EventHandler
     public void onEntityTarget(EntityTargetEvent event) {
         // Make reinforcement mobs only target capturing players
-        if (!event.getEntity().hasMetadata("capture_reinforcement")) {
+        if (!event.getEntity().hasMetadata(META_REINFORCEMENT)) {
             return;
         }
 
@@ -40,7 +57,7 @@ public class ReinforcementListener implements Listener {
             return;
         }
 
-        String pointId = event.getEntity().getMetadata("capture_reinforcement").get(0).asString();
+        String pointId = event.getEntity().getMetadata(META_REINFORCEMENT).get(0).asString();
         CapturePoint point = plugin.getCapturePoint(pointId);
 
         if (point == null) {
@@ -67,35 +84,35 @@ public class ReinforcementListener implements Listener {
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
         // Check if this is a reinforcement mob
-        if (!event.getEntity().hasMetadata("capture_reinforcement")) {
+        if (!event.getEntity().hasMetadata(META_REINFORCEMENT)) {
             return;
         }
 
         // Clear all loot drops but keep XP
         event.getDrops().clear();
 
-        String pointId = event.getEntity().getMetadata("capture_reinforcement").get(0).asString();
+        String pointId = event.getEntity().getMetadata(META_REINFORCEMENT).get(0).asString();
         CaptureSession session = plugin.getActiveSession(pointId);
 
         // Only reward if there's an active capture
-        if (session != null && session.isActive()) {
-            // Reduce capture time by random 1-3 seconds when reinforcement is killed
-            Random random = new Random();
-            int secondsReduced = random.nextInt(3) + 1; // 1 to 3 seconds
-            int currentTime = session.getRemainingCaptureTime();
-            int newTime = Math.max(0, currentTime - secondsReduced); // Don't go below 0
-            session.setRemainingCaptureTime(newTime);
+        if (session != null && session.isActive() && !session.isInPreparationPhase()) {
+            int secondsReduced = getTimerReductionSeconds(pointId, event.getEntity());
+            if (secondsReduced > 0) {
+                int currentTime = session.getRemainingCaptureTime();
+                int newTime = Math.max(0, currentTime - secondsReduced); // Don't go below 0
+                session.setRemainingCaptureTime(newTime);
 
-            // Notify the killer if it's a player
-            Player killer = event.getEntity().getKiller();
-            if (killer != null) {
-                killer.sendMessage(Messages.get("messages.reinforcement.timer-reduced", Map.of(
-                    "seconds", String.valueOf(secondsReduced)
-                )));
+                // Notify the killer if it's a player
+                Player killer = event.getEntity().getKiller();
+                if (killer != null) {
+                    plugin.sendNotification(killer, Messages.get("messages.reinforcement.timer-reduced", Map.of(
+                        "seconds", String.valueOf(secondsReduced)
+                    )));
+                }
+                
+                // Check if we need to spawn a phase due to timer change
+                checkAndSpawnPhase(pointId);
             }
-            
-            // Check if we need to spawn a phase due to timer change
-            checkAndSpawnPhase(pointId);
         }
 
         // Remove from active reinforcements list
@@ -121,7 +138,8 @@ public class ReinforcementListener implements Listener {
         // Calculate elapsed time and expected phase
         int initialTime = session.getInitialCaptureTime();
         int elapsed = initialTime - timeLeft;
-        int expectedPhase = (elapsed / 30) + 1;
+        int intervalSeconds = getWaveIntervalSeconds(pointId);
+        int expectedPhase = (elapsed / intervalSeconds) + 1;
         int currentP = currentPhase.getOrDefault(pointId, 1);
         
         // If we've skipped phases due to kill rewards, spawn them now
@@ -136,14 +154,20 @@ public class ReinforcementListener implements Listener {
         }
     }
 
+    private int getWaveIntervalSeconds(String pointId) {
+        int interval = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.wave-interval", 30);
+        return Math.max(1, interval);
+    }
+
     private void spawnReinforcementWave(String pointId, CapturePoint point, int phase) {
-        if (!plugin.getConfig().getBoolean("reinforcements.enabled", true)) {
+        // Use zone-specific config
+        if (!(boolean) plugin.getZoneConfigManager().getZoneSetting(pointId, "reinforcements.enabled", true)) {
             return;
         }
 
         // Get active session to check time remaining
         CaptureSession session = plugin.getActiveSession(pointId);
-        if (session == null) {
+        if (session == null || !session.isActive() || session.isInPreparationPhase()) {
             return;
         }
 
@@ -155,20 +179,24 @@ public class ReinforcementListener implements Listener {
         }
 
         // Calculate mobs based on phase (harder each phase)
-        int baseMobs = plugin.getConfig().getInt("reinforcements.mobs-per-wave", 1);
+        int baseMobs = ((Number) plugin.getZoneConfigManager().getZoneSetting(pointId, "reinforcements.mobs-per-wave", 1)).intValue();
         int mobsThisPhase = baseMobs + phase;
         
         // Cap at 12 mobs per wave (after phase 11+)
         int actualMobs = Math.min(mobsThisPhase, 12);
-        int maxMobs = plugin.getConfig().getInt("reinforcements.max-mobs-per-point", 50);
+        int maxMobs = ((Number) plugin.getZoneConfigManager().getZoneSetting(pointId, "reinforcements.max-mobs-per-point", 50)).intValue();
 
         // Get capturing players to target
         String capturingTown = point.getCapturingTown();
+        if (capturingTown == null || capturingTown.isEmpty()) {
+            return;
+        }
         com.palmergames.bukkit.towny.TownyAPI townyAPI = com.palmergames.bukkit.towny.TownyAPI.getInstance();
         
         // Enqueue spawns respecting the global cap; queue processor will rate-limit
         List<UUID> reinforcements = activeReinforcements.computeIfAbsent(pointId, k -> new ArrayList<>());
-        int availableSlots = Math.max(0, maxMobs - reinforcements.size());
+        int pending = pendingSpawns.getOrDefault(pointId, 0);
+        int availableSlots = Math.max(0, maxMobs - (reinforcements.size() + pending));
         int toQueue = Math.min(actualMobs, availableSlots);
         for (int i = 0; i < toQueue; i++) {
             enqueueSpawn(pointId);
@@ -183,13 +211,14 @@ public class ReinforcementListener implements Listener {
             com.palmergames.bukkit.towny.object.Town playerTown = townyAPI.getTown(player);
             if (playerTown != null && playerTown.getName().equals(capturingTown) && 
                 plugin.isWithinChunkRadius(player.getLocation(), point.getLocation(), point.getChunkRadius())) {
-                player.sendMessage(phaseMessage);
+                plugin.sendNotification(player, phaseMessage);
             }
         }
     }
 
     private void enqueueSpawn(String pointId) {
         spawnQueue.add(new SpawnRequest(pointId));
+        pendingSpawns.merge(pointId, 1, Integer::sum);
         ensureSpawnProcessor();
     }
 
@@ -201,33 +230,43 @@ public class ReinforcementListener implements Listener {
     }
 
     private void processSpawnQueue() {
-        int maxPerTick = Math.max(1, plugin.getConfig().getInt("reinforcements.spawn-rate.max-per-tick", 3));
-        int processed = 0;
-        while (processed < maxPerTick) {
+        int maxIterations = spawnQueue.size();
+        int attempts = 0;
+        Map<String, Integer> perZoneProcessed = new HashMap<>();
+        while (attempts < maxIterations) {
             SpawnRequest request = spawnQueue.poll();
             if (request == null) {
                 break;
             }
+            attempts++;
+            decrementPending(request.pointId);
+
+            int zoneLimit = getZoneSpawnLimit(request.pointId);
+            int zoneProcessed = perZoneProcessed.getOrDefault(request.pointId, 0);
+            if (zoneProcessed >= zoneLimit) {
+                spawnQueue.add(request);
+                incrementPending(request.pointId);
+                continue;
+            }
 
             CaptureSession session = plugin.getActiveSession(request.pointId);
             CapturePoint point = plugin.getCapturePoint(request.pointId);
-            if (session == null || point == null) {
+            if (!isSpawnAllowed(session, point)) {
+                removeQueuedSpawns(request.pointId);
                 continue;
             }
 
-            String capturingTown = session.getTownName();
-            if (capturingTown == null || capturingTown.isEmpty()) {
-                continue;
-            }
+            String capturingTown = point.getCapturingTown();
 
             List<UUID> reinforcements = activeReinforcements.computeIfAbsent(request.pointId, k -> new ArrayList<>());
-            int maxMobs = plugin.getConfig().getInt("reinforcements.max-mobs-per-point", 50);
+            // Use zone-specific max-mobs-per-point
+            int maxMobs = ((Number) plugin.getZoneConfigManager().getZoneSetting(request.pointId, "reinforcements.max-mobs-per-point", 50)).intValue();
             if (reinforcements.size() >= maxMobs) {
                 continue;
             }
 
             if (spawnReinforcementMob(point, session, capturingTown, reinforcements)) {
-                processed++;
+                perZoneProcessed.put(request.pointId, zoneProcessed + 1);
             }
         }
 
@@ -237,7 +276,142 @@ public class ReinforcementListener implements Listener {
         }
     }
 
+    private void decrementPending(String pointId) {
+        Integer current = pendingSpawns.get(pointId);
+        if (current == null) {
+            return;
+        }
+        int next = current - 1;
+        if (next <= 0) {
+            pendingSpawns.remove(pointId);
+        } else {
+            pendingSpawns.put(pointId, next);
+        }
+    }
+
+    private void incrementPending(String pointId) {
+        pendingSpawns.merge(pointId, 1, Integer::sum);
+    }
+
+    private int getZoneSpawnLimit(String pointId) {
+        int value = 3;
+        if (plugin.getZoneConfigManager() != null && pointId != null) {
+            value = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.spawn-rate.max-per-tick", 3);
+        } else if (plugin.getZoneConfigManager() != null) {
+            value = plugin.getZoneConfigManager().getDefaultInt("reinforcements.spawn-rate.max-per-tick", 3);
+        } else {
+            value = plugin.getConfig().getInt("reinforcements.spawn-rate.max-per-tick", 3);
+        }
+        return Math.max(1, value);
+    }
+
+    private int getTimerReductionSeconds(String pointId, LivingEntity entity) {
+        if (plugin.getZoneConfigManager() == null) {
+            return getRandomReduction(1, 3);
+        }
+
+        String source = getMetadataString(entity, META_SOURCE);
+        boolean isMythic = source != null && "MYTHIC".equalsIgnoreCase(source);
+        if (isMythic) {
+            int defaultMin = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.timer-reduction.mythic.default.min", 1);
+            int defaultMax = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.timer-reduction.mythic.default.max", 3);
+            String mythicType = getMetadataString(entity, META_MYTHIC_TYPE);
+            if (mythicType != null && !mythicType.isEmpty()) {
+                String basePath = "reinforcements.timer-reduction.mythic.per-mob." + mythicType;
+                int min = plugin.getZoneConfigManager().getInt(pointId, basePath + ".min", defaultMin);
+                int max = plugin.getZoneConfigManager().getInt(pointId, basePath + ".max", defaultMax);
+                return getRandomReduction(min, max);
+            }
+            return getRandomReduction(defaultMin, defaultMax);
+        }
+
+        int vanillaMin = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.timer-reduction.vanilla.min", 1);
+        int vanillaMax = plugin.getZoneConfigManager().getInt(pointId, "reinforcements.timer-reduction.vanilla.max", 3);
+        return getRandomReduction(vanillaMin, vanillaMax);
+    }
+
+    private int getRandomReduction(int min, int max) {
+        int safeMin = Math.max(0, min);
+        int safeMax = Math.max(safeMin, max);
+        if (safeMax <= safeMin) {
+            return safeMin;
+        }
+        return safeMin + random.nextInt(safeMax - safeMin + 1);
+    }
+
+    private String getMetadataString(Entity entity, String key) {
+        if (entity == null || !entity.hasMetadata(key)) {
+            return null;
+        }
+        List<MetadataValue> values = entity.getMetadata(key);
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return values.get(0).asString();
+    }
+
+    private boolean isSpawnAllowed(CaptureSession session, CapturePoint point) {
+        if (session == null || point == null) {
+            return false;
+        }
+        if (!session.isActive() || session.isInPreparationPhase()) {
+            return false;
+        }
+        if (session.getTownName() == null || session.getTownName().isEmpty()) {
+            return false;
+        }
+        String capturingTown = point.getCapturingTown();
+        if (capturingTown == null || capturingTown.isEmpty()) {
+            return false;
+        }
+        return capturingTown.equals(session.getTownName());
+    }
+
+    private void removeQueuedSpawns(String pointId) {
+        if (spawnQueue.isEmpty()) {
+            pendingSpawns.remove(pointId);
+            return;
+        }
+
+        int removed = 0;
+        Iterator<SpawnRequest> iterator = spawnQueue.iterator();
+        while (iterator.hasNext()) {
+            SpawnRequest request = iterator.next();
+            if (request.pointId.equals(pointId)) {
+                iterator.remove();
+                removed++;
+            }
+        }
+
+        if (removed > 0) {
+            Integer current = pendingSpawns.get(pointId);
+            if (current != null) {
+                int next = current - removed;
+                if (next <= 0) {
+                    pendingSpawns.remove(pointId);
+                } else {
+                    pendingSpawns.put(pointId, next);
+                }
+            }
+        }
+    }
+
     private boolean spawnReinforcementMob(CapturePoint point, CaptureSession session, String capturingTown, List<UUID> reinforcements) {
+        // Check if mob spawner is initialized
+        if (mobSpawner == null) {
+            plugin.getLogger().warning("MobSpawner not initialized! Cannot spawn reinforcements.");
+            return false;
+        }
+        
+        if (!mobSpawner.isAvailable()) {
+            plugin.getLogger().warning("MobSpawner is not available! Cannot spawn reinforcements.");
+            return false;
+        }
+
+        if (session == null || !session.isActive() || session.isInPreparationPhase()) {
+            return false;
+        }
+        
         Player originPlayer = null;
         if (session.getInitiatorUUID() != null) {
             originPlayer = plugin.getServer().getPlayer(session.getInitiatorUUID());
@@ -251,7 +425,6 @@ public class ReinforcementListener implements Listener {
             return false;
         }
 
-        Random random = new Random();
         double angle = random.nextDouble() * 2 * Math.PI;
         double radius = random.nextDouble() * 8 + 3; // 3-11 blocks away
         Location spawnLoc = origin.clone().add(Math.cos(angle) * radius, 0.5, Math.sin(angle) * radius);
@@ -261,24 +434,16 @@ public class ReinforcementListener implements Listener {
         int surfaceY = spawnLoc.getWorld().getHighestBlockYAt(spawnLoc.getBlockX(), spawnLoc.getBlockZ());
         spawnLoc.setY(surfaceY + 1.0);
 
-        // Choose random mob type
-        List<String> mobTypes = plugin.getConfig().getStringList("reinforcements.mob-types");
-        if (mobTypes.isEmpty()) {
-            mobTypes = Arrays.asList("ZOMBIE", "SKELETON");
+        // Use the mob spawner abstraction to spawn the mob
+        LivingEntity mob = mobSpawner.spawnMob(point.getId(), spawnLoc, originPlayer);
+        
+        if (mob == null) {
+            plugin.getLogger().warning("Failed to spawn reinforcement mob at " + spawnLoc);
+            return false;
         }
-
-        String mobTypeStr = mobTypes.get(random.nextInt(mobTypes.size()));
-        EntityType mobType;
-        try {
-            mobType = EntityType.valueOf(mobTypeStr);
-        } catch (IllegalArgumentException e) {
-            mobType = EntityType.ZOMBIE;
-        }
-
-        Mob mob = (Mob) spawnLoc.getWorld().spawnEntity(spawnLoc, mobType);
 
         // Set metadata to mark as reinforcement
-        mob.setMetadata("capture_reinforcement", new FixedMetadataValue(plugin, point.getId()));
+        mob.setMetadata(META_REINFORCEMENT, new FixedMetadataValue(plugin, point.getId()));
         mob.setMetadata("capture_point_id", new FixedMetadataValue(plugin, point.getId()));
         mob.setMetadata("capturing_town", new FixedMetadataValue(plugin, capturingTown));
 
@@ -288,33 +453,16 @@ public class ReinforcementListener implements Listener {
         mob.setRemoveWhenFarAway(false);
         mob.setPersistent(true);
 
-        // Prevent daylight burning - multiple layers of protection
-        EntityEquipment equipment = mob.getEquipment();
-        if (equipment != null) {
-            List<String> hatItems = plugin.getConfig().getStringList("reinforcements.hat-items");
-            if (!hatItems.isEmpty()) {
-                String hatMaterial = hatItems.get(random.nextInt(hatItems.size()));
-                try {
-                    Material hat = Material.valueOf(hatMaterial);
-                    equipment.setHelmet(new org.bukkit.inventory.ItemStack(hat));
-                    equipment.setHelmetDropChance(0f);
-                } catch (IllegalArgumentException e) {
-                    equipment.setHelmet(new org.bukkit.inventory.ItemStack(Material.LEATHER_HELMET));
-                    equipment.setHelmetDropChance(0f);
-                }
-            }
-        }
+        // Add fire resistance to prevent burning
+        mob.addPotionEffect(new PotionEffect(
+            PotionEffectType.FIRE_RESISTANCE, 
+            999999, 
+            1, 
+            true, 
+            false
+        ));
         
-        if (mob instanceof LivingEntity) {
-            ((LivingEntity) mob).addPotionEffect(new PotionEffect(
-                PotionEffectType.FIRE_RESISTANCE, 
-                999999, 
-                1, 
-                true, 
-                false
-            ));
-        }
-        
+        // Handle special mob types
         if (mob instanceof Slime) {
             ((Slime) mob).setSize(2); // Medium size
         }
@@ -323,14 +471,18 @@ public class ReinforcementListener implements Listener {
         }
 
         // Initial target setup (will be continuously updated by tracking task)
-        updateMobTarget(mob, point.getId(), capturingTown);
+        updateMobTarget(mob, point, capturingTown);
         return true;
     }
     
     /**
-     * Updates a mob's target to the nearest capturing player (no distance limit)
+     * Updates a mob's target to the nearest capturing player.
      */
-    private void updateMobTarget(Entity mobEntity, String pointId, String capturingTown) {
+    private void updateMobTarget(Entity mobEntity, CapturePoint point, String capturingTown) {
+        updateMobTarget(mobEntity, point, getEligibleTargets(point, capturingTown));
+    }
+
+    private void updateMobTarget(Entity mobEntity, CapturePoint point, List<Player> candidates) {
         if (!(mobEntity instanceof Creature)) {
             return;
         }
@@ -338,40 +490,27 @@ public class ReinforcementListener implements Listener {
         if (mobEntity.isDead() || !mobEntity.isValid()) {
             return;
         }
-        
-        CapturePoint point = plugin.getCapturePoint(pointId);
-        if (point == null) {
+
+        if (point == null || candidates.isEmpty()) {
+            return;
+        }
+
+        if (mobEntity.getWorld() != point.getLocation().getWorld()) {
             return;
         }
         
         Creature creature = (Creature) mobEntity;
         Player nearestTarget = null;
         double closestDist = Double.MAX_VALUE;
-        
-        com.palmergames.bukkit.towny.TownyAPI townyAPI = com.palmergames.bukkit.towny.TownyAPI.getInstance();
-        
-        // Search for players in the same world - NO DISTANCE LIMIT
-        for (Player player : mobEntity.getWorld().getPlayers()) {
+
+        for (Player player : candidates) {
             if (!player.isOnline() || player.isDead()) {
                 continue;
             }
-            
-            com.palmergames.bukkit.towny.object.Town playerTown = townyAPI.getTown(player);
-            
-            // Only target players from the capturing town
-            if (playerTown != null && playerTown.getName().equals(capturingTown)) {
-                // Check if player is in or near the capture zone (allow some leeway)
-                double blockDist = plugin.getChunkDistance(player.getLocation(), point.getLocation()) * 16;
-                int blockRadius = point.getChunkRadius() * 16;
-                
-                // Allow mobs to follow up to 50 blocks outside the zone
-                if (blockDist <= (blockRadius + 50)) {
-                    double dist = player.getLocation().distance(mobEntity.getLocation());
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        nearestTarget = player;
-                    }
-                }
+            double dist = player.getLocation().distance(mobEntity.getLocation());
+            if (dist < closestDist) {
+                closestDist = dist;
+                nearestTarget = player;
             }
         }
         
@@ -386,6 +525,40 @@ public class ReinforcementListener implements Listener {
             // If no valid target found but mob has a target, keep current target
             // This prevents mobs from losing track of players
         }
+    }
+
+    private List<Player> getEligibleTargets(CapturePoint point, String capturingTown) {
+        if (point == null || capturingTown == null || capturingTown.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Location center = point.getLocation();
+        if (center == null || center.getWorld() == null) {
+            return Collections.emptyList();
+        }
+
+        int blockRadius = point.getChunkRadius() * 16;
+        double maxDistance = blockRadius + 50;
+        com.palmergames.bukkit.towny.TownyAPI townyAPI = com.palmergames.bukkit.towny.TownyAPI.getInstance();
+        List<Player> candidates = new ArrayList<>();
+
+        for (Player player : center.getWorld().getPlayers()) {
+            if (!player.isOnline() || player.isDead()) {
+                continue;
+            }
+
+            com.palmergames.bukkit.towny.object.Town playerTown = townyAPI.getTown(player);
+            if (playerTown == null || !playerTown.getName().equals(capturingTown)) {
+                continue;
+            }
+
+            double blockDist = plugin.getChunkDistance(player.getLocation(), center) * 16;
+            if (blockDist <= maxDistance) {
+                candidates.add(player);
+            }
+        }
+
+        return candidates;
     }
     
     /**
@@ -408,12 +581,23 @@ public class ReinforcementListener implements Listener {
             if (reinforcements == null || reinforcements.isEmpty()) {
                 return;
             }
+
+            CapturePoint point = plugin.getCapturePoint(pointId);
+            if (point == null) {
+                stopMobTracking(pointId);
+                return;
+            }
+
+            List<Player> candidates = getEligibleTargets(point, capturingTown);
+            if (candidates.isEmpty()) {
+                return;
+            }
             
             // Update target for each mob
             for (UUID mobUUID : new ArrayList<>(reinforcements)) {
                 Entity mob = plugin.getServer().getEntity(mobUUID);
                 if (mob != null && mob.isValid() && !mob.isDead()) {
-                    updateMobTarget(mob, pointId, capturingTown);
+                    updateMobTarget(mob, point, candidates);
                 }
             }
         }, 20L, 20L); // Every second (20 ticks)
@@ -429,7 +613,7 @@ public class ReinforcementListener implements Listener {
         if (task != null && !task.isCancelled()) {
             task.cancel();
         }
-        spawnQueue.removeIf(req -> req.pointId.equals(pointId));
+        removeQueuedSpawns(pointId);
     }
 
     public void clearReinforcements(String pointId) {
@@ -461,6 +645,7 @@ public class ReinforcementListener implements Listener {
             spawnProcessorTask.cancel();
         }
         spawnQueue.clear();
+        pendingSpawns.clear();
         
         // Cancel per-point tasks and clean mobs
         for (String pointId : new ArrayList<>(activeReinforcements.keySet())) {
@@ -475,7 +660,8 @@ public class ReinforcementListener implements Listener {
     }
 
     public void startReinforcementWaves(String pointId, CapturePoint point) {
-        if (!plugin.getConfig().getBoolean("reinforcements.enabled", true)) {
+        // Use zone-specific config
+        if (!(boolean) plugin.getZoneConfigManager().getZoneSetting(pointId, "reinforcements.enabled", true)) {
             return;
         }
 
@@ -491,7 +677,7 @@ public class ReinforcementListener implements Listener {
             startMobTracking(pointId, capturingTown);
         }
 
-        // Check every second for timer mark (:00 or :30)
+        // Check every second for timer mark based on wave interval
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             if (!plugin.getActiveSessions().containsKey(pointId)) {
                 clearReinforcements(pointId);
@@ -510,15 +696,14 @@ public class ReinforcementListener implements Listener {
                 return;
             }
             
-            // Check if we're at a :00 or :30 mark on the timer
-            int seconds = timeLeft % 60;
-            boolean isAtMark = (seconds == 0 || seconds == 30);
+            int intervalSeconds = getWaveIntervalSeconds(pointId);
+            boolean isAtMark = (timeLeft % intervalSeconds == 0);
             
             if (isAtMark) {
                 // Calculate expected phase based on timer position
                 int initialTime = session.getInitialCaptureTime();
                 int elapsed = initialTime - timeLeft;
-                int expectedPhase = (elapsed / 30) + 1;
+                int expectedPhase = (elapsed / intervalSeconds) + 1;
                 int currentP = currentPhase.getOrDefault(pointId, 1);
                 
                 // Spawn any phases we've skipped

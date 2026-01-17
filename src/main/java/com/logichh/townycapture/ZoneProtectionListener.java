@@ -36,7 +36,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getBlock().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.block-break-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-break-blocked"));
         }
     }
 
@@ -53,7 +53,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getBlock().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.block-place-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.block-place-blocked"));
         }
     }
 
@@ -83,7 +83,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getEntity().getLocation())) {
             event.setCancelled(true);
-            ((Player)event.getDamager()).sendMessage(Messages.get("protection.pvp-blocked"));
+            plugin.sendNotification((Player) event.getDamager(), Messages.get("protection.pvp-blocked"));
         }
     }
 
@@ -100,7 +100,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.item-use-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.item-use-blocked"));
         }
     }
 
@@ -117,7 +117,7 @@ implements Listener {
         }
         if (this.isInProtectedZone(event.getTo())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.teleport-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.teleport-blocked"));
         }
     }
 
@@ -132,11 +132,11 @@ implements Listener {
         String command = event.getMessage().toLowerCase();
         if (this.plugin.getConfig().getBoolean("protection.prevent-homes", true) && (command.startsWith("/home") || command.startsWith("/homes") || command.startsWith("/sethome") || command.startsWith("/delhome")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.home-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.home-blocked"));
         }
         if (this.plugin.getConfig().getBoolean("protection.prevent-claiming", true) && (command.startsWith("/t claim") || command.startsWith("/town claim") || command.startsWith("/n claim") || command.startsWith("/nation claim")) && this.isInProtectedZone(event.getPlayer().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Messages.get("protection.claiming-blocked"));
+            plugin.sendNotification(event.getPlayer(), Messages.get("protection.claiming-blocked"));
         }
     }
 
