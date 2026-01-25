@@ -1821,7 +1821,7 @@ extends JavaPlugin {
         
         // Send Discord webhook notification for capture cancellation
         if (discordWebhook != null && session != null) {
-            String webhookReason = (reason != null && !reason.isEmpty()) ? reason : "Admin stopped capture";
+            String webhookReason = (reason != null && !reason.isEmpty()) ? reason : Messages.get("discord.capture.cancelled.admin-reason");
             discordWebhook.sendCaptureCancelled(point.getId(), point.getName(), session.getTownName(), webhookReason);
         }
         

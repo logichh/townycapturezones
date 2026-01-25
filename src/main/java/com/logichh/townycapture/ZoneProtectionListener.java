@@ -3,6 +3,7 @@ package com.logichh.townycapture;
 import com.logichh.townycapture.CapturePoint;
 import com.logichh.townycapture.TownyCapture;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -102,6 +103,18 @@ public class ZoneProtectionListener implements Listener {
         if (zoneId != null) {
             boolean preventItemUse = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-item-use", true);
             if (preventItemUse) {
+                Material itemType = event.getItem() != null ? event.getItem().getType() : null;
+                if (itemType == Material.ENDER_PEARL) {
+                    boolean allowEnderPearls = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.allow-ender-pearls", false);
+                    if (allowEnderPearls) {
+                        return;
+                    }
+                } else if (itemType == Material.CHORUS_FRUIT) {
+                    boolean allowChorusFruit = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.allow-chorus-fruit", false);
+                    if (allowChorusFruit) {
+                        return;
+                    }
+                }
                 event.setCancelled(true);
                 plugin.sendNotification(event.getPlayer(), Messages.get("protection.item-use-blocked"));
             }
@@ -120,6 +133,18 @@ public class ZoneProtectionListener implements Listener {
         if (zoneId != null) {
             boolean preventTeleporting = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.prevent-teleporting", true);
             if (preventTeleporting) {
+                PlayerTeleportEvent.TeleportCause cause = event.getCause();
+                if (cause == PlayerTeleportEvent.TeleportCause.ENDER_PEARL) {
+                    boolean allowEnderPearls = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.allow-ender-pearls", false);
+                    if (allowEnderPearls) {
+                        return;
+                    }
+                } else if (cause == PlayerTeleportEvent.TeleportCause.CHORUS_FRUIT) {
+                    boolean allowChorusFruit = (boolean) plugin.getZoneConfigManager().getZoneSetting(zoneId, "protection.allow-chorus-fruit", false);
+                    if (allowChorusFruit) {
+                        return;
+                    }
+                }
                 event.setCancelled(true);
                 plugin.sendNotification(event.getPlayer(), Messages.get("protection.teleport-blocked"));
             }

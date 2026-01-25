@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -23,6 +24,7 @@ public class StatisticsGUI {
     
     // Track active menu sessions
     private final Map<UUID, MenuSession> activeSessions = new HashMap<>();
+    private final Map<UUID, Inventory> activeInventories = new HashMap<>();
     
     // Command usage cooldown (5 minutes)
     private final Map<UUID, Long> commandCooldowns = new HashMap<>();
@@ -97,50 +99,51 @@ public class StatisticsGUI {
      * Open main category selection menu
      */
     public void openMainMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics Hub");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.main.title"));
         applyFrame(inv, MAIN_BORDER_MATERIAL, FILL_MATERIAL);
 
         StatisticsData.ServerRecords records = statsManager.getData().getServerRecords();
         inv.setItem(HEADER_CENTER_SLOT, createStatItem(Material.NETHER_STAR,
-            ChatColor.AQUA + "" + ChatColor.BOLD + "Server Snapshot",
-            ChatColor.GRAY + "Captures: " + ChatColor.WHITE + records.totalServerCaptures,
-            ChatColor.GRAY + "Deaths: " + ChatColor.WHITE + records.totalServerDeaths,
-            ChatColor.GRAY + "Economy: " + ChatColor.WHITE + String.format("$%.2f", records.totalServerEconomy)
+            Messages.get("gui.stats.snapshot.title"),
+            Messages.get("gui.stats.snapshot.captures", Map.of("count", String.valueOf(records.totalServerCaptures))),
+            Messages.get("gui.stats.snapshot.deaths", Map.of("count", String.valueOf(records.totalServerDeaths))),
+            Messages.get("gui.stats.snapshot.economy", Map.of("amount", String.format("%.2f", records.totalServerEconomy)))
         ));
 
-        inv.setItem(20, createCategoryItem(Material.BEACON, "Captures",
-            ChatColor.GRAY + "Top towns, players, zones",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(20, createCategoryItem(Material.BEACON, 
+            Messages.get("gui.stats.category.captures.name"),
+            Messages.getList("gui.stats.category.captures.lore")
         ));
         
-        inv.setItem(22, createCategoryItem(Material.DIAMOND_SWORD, "Combat",
-            ChatColor.GRAY + "Kills, deaths, K/D ratios",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(22, createCategoryItem(Material.DIAMOND_SWORD, 
+            Messages.get("gui.stats.category.combat.name"),
+            Messages.getList("gui.stats.category.combat.lore")
         ));
         
-        inv.setItem(24, createCategoryItem(Material.SHIELD, "Control",
-            ChatColor.GRAY + "Hold times, streaks",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(24, createCategoryItem(Material.SHIELD, 
+            Messages.get("gui.stats.category.control.name"),
+            Messages.getList("gui.stats.category.control.lore")
         ));
         
-        inv.setItem(29, createCategoryItem(Material.EMERALD, "Economy",
-            ChatColor.GRAY + "Rewards, earnings",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(29, createCategoryItem(Material.EMERALD, 
+            Messages.get("gui.stats.category.economy.name"),
+            Messages.getList("gui.stats.category.economy.lore")
         ));
         
-        inv.setItem(31, createCategoryItem(Material.CLOCK, "Activity",
-            ChatColor.GRAY + "Mob kills, participation",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(31, createCategoryItem(Material.CLOCK, 
+            Messages.get("gui.stats.category.activity.name"),
+            Messages.getList("gui.stats.category.activity.lore")
         ));
         
-        inv.setItem(33, createCategoryItem(Material.BOOK, "Records",
-            ChatColor.GRAY + "All-time bests",
-            ChatColor.DARK_GRAY + "Click to view"
+        inv.setItem(33, createCategoryItem(Material.BOOK, 
+            Messages.get("gui.stats.category.records.name"),
+            Messages.getList("gui.stats.category.records.lore")
         ));
         
         inv.setItem(INFO_SLOT, createInfoItem());
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.MAIN, 0));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -148,13 +151,13 @@ public class StatisticsGUI {
      * Open captures category menu
      */
     public void openCapturesMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Captures");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.captures.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
-        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.BEACON, "Captures"));
-        inv.setItem(HEADER_LEFT_SLOT, createHeaderItem(Material.WHITE_BANNER, "Top Towns"));
-        inv.setItem(HEADER_RIGHT_SLOT, createHeaderItem(Material.PLAYER_HEAD, "Top Players"));
+        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.BEACON, Messages.get("gui.stats.header.captures")));
+        inv.setItem(HEADER_LEFT_SLOT, createHeaderItem(Material.WHITE_BANNER, Messages.get("gui.stats.header.top-towns")));
+        inv.setItem(HEADER_RIGHT_SLOT, createHeaderItem(Material.PLAYER_HEAD, Messages.get("gui.stats.header.top-players")));
         
         List<Map.Entry<String, Integer>> topTowns = statsManager.getTopTownsByCaptures(10);
         for (int i = 0; i < topTowns.size() && i < LEFT_GRID_SLOTS.length; i++) {
@@ -162,7 +165,7 @@ public class StatisticsGUI {
             inv.setItem(LEFT_GRID_SLOTS[i], createTownStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Captures: " + ChatColor.WHITE + entry.getValue()
+                Messages.get("gui.stats.captures.town.captures", Map.of("count", String.valueOf(entry.getValue())))
             ));
         }
         
@@ -177,14 +180,16 @@ public class StatisticsGUI {
             inv.setItem(RIGHT_GRID_SLOTS[i], createPlayerStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Captures: " + ChatColor.WHITE + entry.getValue().totalCaptures,
-                ChatColor.GRAY + "Failed: " + ChatColor.WHITE + entry.getValue().failedCaptures,
-                ChatColor.GRAY + "Success Rate: " + ChatColor.WHITE + 
-                    String.format("%.1f%%", entry.getValue().getSuccessRate())
+                Messages.get("gui.stats.captures.player.captures", Map.of("count", String.valueOf(entry.getValue().totalCaptures))),
+                Messages.get("gui.stats.captures.player.failed", Map.of("count", String.valueOf(entry.getValue().failedCaptures))),
+                Messages.get("gui.stats.captures.player.success-rate", Map.of(
+                    "rate", String.format("%.1f%%", entry.getValue().getSuccessRate())
+                ))
             ));
         }
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.CAPTURES, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -192,13 +197,13 @@ public class StatisticsGUI {
      * Open combat category menu
      */
     public void openCombatMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Combat");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.combat.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
-        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.DIAMOND_SWORD, "Combat"));
-        inv.setItem(HEADER_LEFT_SLOT, createHeaderItem(Material.IRON_SWORD, "Most Kills"));
-        inv.setItem(HEADER_RIGHT_SLOT, createHeaderItem(Material.DIAMOND_SWORD, "Best K/D"));
+        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.DIAMOND_SWORD, Messages.get("gui.stats.header.combat")));
+        inv.setItem(HEADER_LEFT_SLOT, createHeaderItem(Material.IRON_SWORD, Messages.get("gui.stats.header.most-kills")));
+        inv.setItem(HEADER_RIGHT_SLOT, createHeaderItem(Material.DIAMOND_SWORD, Messages.get("gui.stats.header.best-kd")));
         
         List<Map.Entry<UUID, Integer>> topKillers = statsManager.getTopPlayersByKills(10);
         for (int i = 0; i < topKillers.size() && i < LEFT_GRID_SLOTS.length; i++) {
@@ -207,9 +212,9 @@ public class StatisticsGUI {
             inv.setItem(LEFT_GRID_SLOTS[i], createPlayerStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Kills: " + ChatColor.WHITE + entry.getValue(),
-                ChatColor.GRAY + "Deaths: " + ChatColor.WHITE + stats.deathsInZones,
-                ChatColor.GRAY + "K/D: " + ChatColor.WHITE + String.format("%.2f", stats.getKDRatio())
+                Messages.get("gui.stats.combat.player.kills", Map.of("count", String.valueOf(entry.getValue()))),
+                Messages.get("gui.stats.combat.player.deaths", Map.of("count", String.valueOf(stats.deathsInZones))),
+                Messages.get("gui.stats.combat.player.kd", Map.of("ratio", String.format("%.2f", stats.getKDRatio())))
             ));
         }
         
@@ -220,13 +225,14 @@ public class StatisticsGUI {
             inv.setItem(RIGHT_GRID_SLOTS[i], createPlayerStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "K/D: " + ChatColor.WHITE + String.format("%.2f", entry.getValue()),
-                ChatColor.GRAY + "Kills: " + ChatColor.WHITE + stats.killsInZones,
-                ChatColor.GRAY + "Deaths: " + ChatColor.WHITE + stats.deathsInZones
+                Messages.get("gui.stats.combat.player.kd", Map.of("ratio", String.format("%.2f", entry.getValue()))),
+                Messages.get("gui.stats.combat.player.kills", Map.of("count", String.valueOf(stats.killsInZones))),
+                Messages.get("gui.stats.combat.player.deaths", Map.of("count", String.valueOf(stats.deathsInZones)))
             ));
         }
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.COMBAT, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -234,11 +240,11 @@ public class StatisticsGUI {
      * Open control category menu
      */
     public void openControlMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Control");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.control.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
-        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.SHIELD, "Top Hold Times"));
+        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.SHIELD, Messages.get("gui.stats.header.top-hold-times")));
         
         List<Map.Entry<String, Long>> topTowns = statsManager.getTopTownsByHoldTime(10);
         for (int i = 0; i < topTowns.size() && i < LEFT_GRID_SLOTS.length; i++) {
@@ -247,13 +253,14 @@ public class StatisticsGUI {
             inv.setItem(LEFT_GRID_SLOTS[i], createTownStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Hold Time: " + ChatColor.WHITE + formatDuration(entry.getValue()),
-                ChatColor.GRAY + "Current Zones: " + ChatColor.WHITE + stats.currentControlledZones,
-                ChatColor.GRAY + "Max Zones: " + ChatColor.WHITE + stats.maxSimultaneousZones
+                Messages.get("gui.stats.control.town.hold-time", Map.of("duration", formatDuration(entry.getValue()))),
+                Messages.get("gui.stats.control.town.current-zones", Map.of("count", String.valueOf(stats.currentControlledZones))),
+                Messages.get("gui.stats.control.town.max-zones", Map.of("count", String.valueOf(stats.maxSimultaneousZones)))
             ));
         }
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.CONTROL, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -261,16 +268,16 @@ public class StatisticsGUI {
      * Open economy category menu
      */
     public void openEconomyMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Economy");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.economy.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
         
         double totalEconomy = statsManager.getData().getServerRecords().totalServerEconomy;
         inv.setItem(HEADER_CENTER_SLOT, createStatItem(Material.EMERALD_BLOCK, 
-            ChatColor.GOLD + "" + ChatColor.BOLD + "Total Economy",
-            ChatColor.WHITE + String.format("$%.2f", totalEconomy),
-            ChatColor.GRAY + "Distributed to all towns"
+            Messages.get("gui.stats.economy.total.title"),
+            Messages.get("gui.stats.economy.total.amount", Map.of("amount", String.format("%.2f", totalEconomy))),
+            Messages.get("gui.stats.economy.total.subtitle")
         ));
         
         List<Map.Entry<String, Double>> topTowns = statsManager.getTopTownsByRewards(10);
@@ -279,11 +286,12 @@ public class StatisticsGUI {
             inv.setItem(LEFT_GRID_SLOTS[i], createTownStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Rewards: " + ChatColor.WHITE + String.format("$%.2f", entry.getValue())
+                Messages.get("gui.stats.economy.town.rewards", Map.of("amount", String.format("%.2f", entry.getValue())))
             ));
         }
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.ECONOMY, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -291,11 +299,11 @@ public class StatisticsGUI {
      * Open activity category menu
      */
     public void openActivityMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Activity");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.activity.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
-        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.CLOCK, "Top Towns by Mob Kills"));
+        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.CLOCK, Messages.get("gui.stats.header.top-mob-kills")));
         
         List<Map.Entry<String, Integer>> topTowns = statsManager.getTopTownsByMobKills(10);
         for (int i = 0; i < topTowns.size() && i < LEFT_GRID_SLOTS.length; i++) {
@@ -303,11 +311,12 @@ public class StatisticsGUI {
             inv.setItem(LEFT_GRID_SLOTS[i], createTownStatItem(
                 i + 1,
                 entry.getKey(),
-                ChatColor.GOLD + "Mob Kills: " + ChatColor.WHITE + entry.getValue()
+                Messages.get("gui.stats.activity.town.mob-kills", Map.of("count", String.valueOf(entry.getValue())))
             ));
         }
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.ACTIVITY, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -315,75 +324,78 @@ public class StatisticsGUI {
      * Open records category menu
      */
     public void openRecordsMenu(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "Statistics - Records");
+        Inventory inv = Bukkit.createInventory(null, 54, Messages.get("gui.stats.records.title"));
         applyFrame(inv, SUB_BORDER_MATERIAL, FILL_MATERIAL);
         
         inv.setItem(BACK_SLOT, createBackButton());
-        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.BOOK, "Server Records"));
+        inv.setItem(HEADER_CENTER_SLOT, createHeaderItem(Material.BOOK, Messages.get("gui.stats.header.server-records")));
         
         StatisticsData.ServerRecords records = statsManager.getData().getServerRecords();
         
         // Fastest capture
         inv.setItem(10, createStatItem(Material.FEATHER,
-            ChatColor.GOLD + "Fastest Capture",
-            ChatColor.WHITE + formatDuration(records.fastestCaptureTime),
-            ChatColor.GRAY + "Zone: " + ChatColor.WHITE + records.fastestCaptureZone
+            Messages.get("gui.stats.records.fastest.title"),
+            Messages.get("gui.stats.records.fastest.time", Map.of("duration", formatDuration(records.fastestCaptureTime))),
+            Messages.get("gui.stats.records.zone", Map.of("zone", String.valueOf(records.fastestCaptureZone)))
         ));
         
         // Longest capture
         inv.setItem(12, createStatItem(Material.TURTLE_HELMET,
-            ChatColor.GOLD + "Longest Capture",
-            ChatColor.WHITE + formatDuration(records.longestCaptureTime),
-            ChatColor.GRAY + "Zone: " + ChatColor.WHITE + records.longestCaptureZone
+            Messages.get("gui.stats.records.longest.title"),
+            Messages.get("gui.stats.records.longest.time", Map.of("duration", formatDuration(records.longestCaptureTime))),
+            Messages.get("gui.stats.records.zone", Map.of("zone", String.valueOf(records.longestCaptureZone)))
         ));
         
         // Most captured zone
         inv.setItem(14, createStatItem(Material.TARGET,
-            ChatColor.GOLD + "Most Captured Zone",
-            ChatColor.WHITE + records.mostCapturedZone,
-            ChatColor.GRAY + "Captures: " + ChatColor.WHITE + records.mostCapturesCount
+            Messages.get("gui.stats.records.most-captured.title"),
+            Messages.get("gui.stats.records.most-captured.zone", Map.of("zone", String.valueOf(records.mostCapturedZone))),
+            Messages.get("gui.stats.records.captures", Map.of("count", String.valueOf(records.mostCapturesCount)))
         ));
         
         // Most profitable zone
         inv.setItem(16, createStatItem(Material.GOLD_BLOCK,
-            ChatColor.GOLD + "Most Profitable Zone",
-            ChatColor.WHITE + records.mostProfitableZone,
-            ChatColor.GRAY + "Total: " + ChatColor.WHITE + String.format("$%.2f", records.mostProfitableReward)
+            Messages.get("gui.stats.records.most-profitable.title"),
+            Messages.get("gui.stats.records.most-profitable.zone", Map.of("zone", String.valueOf(records.mostProfitableZone))),
+            Messages.get("gui.stats.records.total", Map.of("amount", String.format("%.2f", records.mostProfitableReward)))
         ));
         
         // Dominant town
         inv.setItem(20, createStatItem(Material.WHITE_BANNER,
-            ChatColor.GOLD + "Dominant Town",
-            ChatColor.WHITE + records.dominantTown,
-            ChatColor.GRAY + "Captures: " + ChatColor.WHITE + records.dominantTownCaptures
+            Messages.get("gui.stats.records.dominant-town.title"),
+            Messages.get("gui.stats.records.dominant-town.town", Map.of("town", String.valueOf(records.dominantTown))),
+            Messages.get("gui.stats.records.captures", Map.of("count", String.valueOf(records.dominantTownCaptures)))
         ));
         
         // First capture
         inv.setItem(22, createStatItem(Material.NETHER_STAR,
-            ChatColor.GOLD + "First Capture",
-            ChatColor.WHITE + (records.firstCaptureTime > 0 ? 
-                new Date(records.firstCaptureTime).toString() : "None"),
-            ChatColor.GRAY + "Town: " + ChatColor.WHITE + records.firstCapturingTown,
-            ChatColor.GRAY + "Player: " + ChatColor.WHITE + records.firstCapturingPlayer
+            Messages.get("gui.stats.records.first-capture.title"),
+            records.firstCaptureTime > 0
+                ? Messages.get("gui.stats.records.first-capture.date", Map.of(
+                    "date", new Date(records.firstCaptureTime).toString()))
+                : Messages.get("gui.stats.records.first-capture.none"),
+            Messages.get("gui.stats.records.town", Map.of("town", String.valueOf(records.firstCapturingTown))),
+            Messages.get("gui.stats.records.player", Map.of("player", String.valueOf(records.firstCapturingPlayer)))
         ));
         
         // Most deadly zone
         inv.setItem(24, createStatItem(Material.SKELETON_SKULL,
-            ChatColor.GOLD + "Most Deadly Zone",
-            ChatColor.WHITE + records.mostDeadlyZone,
-            ChatColor.GRAY + "Deaths: " + ChatColor.WHITE + records.mostDeaths
+            Messages.get("gui.stats.records.most-deadly.title"),
+            Messages.get("gui.stats.records.most-deadly.zone", Map.of("zone", String.valueOf(records.mostDeadlyZone))),
+            Messages.get("gui.stats.records.deaths", Map.of("count", String.valueOf(records.mostDeaths)))
         ));
         
         // Server totals
         inv.setItem(31, createStatItem(Material.DIAMOND,
-            ChatColor.GOLD + "" + ChatColor.BOLD + "Server Totals",
-            ChatColor.WHITE + "Captures: " + ChatColor.YELLOW + records.totalServerCaptures,
-            ChatColor.WHITE + "Deaths: " + ChatColor.YELLOW + records.totalServerDeaths,
-            ChatColor.WHITE + "Mob Kills: " + ChatColor.YELLOW + records.totalServerMobKills,
-            ChatColor.WHITE + "Economy: " + ChatColor.YELLOW + String.format("$%.2f", records.totalServerEconomy)
+            Messages.get("gui.stats.records.server-totals.title"),
+            Messages.get("gui.stats.records.server.captures", Map.of("count", String.valueOf(records.totalServerCaptures))),
+            Messages.get("gui.stats.records.server.deaths", Map.of("count", String.valueOf(records.totalServerDeaths))),
+            Messages.get("gui.stats.records.server.mob-kills", Map.of("count", String.valueOf(records.totalServerMobKills))),
+            Messages.get("gui.stats.records.server.economy", Map.of("amount", String.format("%.2f", records.totalServerEconomy)))
         ));
         
         activeSessions.put(player.getUniqueId(), new MenuSession(MenuType.RECORDS, page));
+        activeInventories.put(player.getUniqueId(), inv);
         player.openInventory(inv);
     }
     
@@ -428,6 +440,32 @@ public class StatisticsGUI {
      */
     public void closeMenu(Player player) {
         activeSessions.remove(player.getUniqueId());
+        activeInventories.remove(player.getUniqueId());
+    }
+
+    public boolean isStatsView(Player player, InventoryView view) {
+        if (player == null || view == null) {
+            return false;
+        }
+        Inventory current = activeInventories.get(player.getUniqueId());
+        if (current != null && current.equals(view.getTopInventory())) {
+            return true;
+        }
+        return isStatsTitle(view.getTitle());
+    }
+
+    private boolean isStatsTitle(String title) {
+        if (title == null) {
+            return false;
+        }
+        String plainTitle = ChatColor.stripColor(title);
+        return plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.main.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.captures.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.combat.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.control.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.economy.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.activity.title"))) ||
+            plainTitle.equals(ChatColor.stripColor(Messages.get("gui.stats.records.title")));
     }
     
     // ==================== HELPER METHODS ====================
@@ -469,12 +507,12 @@ public class StatisticsGUI {
         return filler;
     }
     
-    private ItemStack createCategoryItem(Material material, String name, String... lore) {
+    private ItemStack createCategoryItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.AQUA + "" + ChatColor.BOLD + name);
-            meta.setLore(Arrays.asList(lore));
+            meta.setDisplayName(name);
+            meta.setLore(lore);
             item.setItemMeta(meta);
         }
         return item;
@@ -484,7 +522,7 @@ public class StatisticsGUI {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + name);
+            meta.setDisplayName(name);
             item.setItemMeta(meta);
         }
         return item;
@@ -494,7 +532,10 @@ public class StatisticsGUI {
         ItemStack item = new ItemStack(Material.WHITE_BANNER);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.GOLD + "#" + rank + " " + ChatColor.WHITE + townName);
+            meta.setDisplayName(Messages.get("gui.stats.rank.town", Map.of(
+                "rank", String.valueOf(rank),
+                "town", String.valueOf(townName)
+            )));
             meta.setLore(Arrays.asList(stats));
             item.setItemMeta(meta);
         }
@@ -508,8 +549,13 @@ public class StatisticsGUI {
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(offlinePlayer);
-            String playerName = offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown";
-            meta.setDisplayName(ChatColor.AQUA + "#" + rank + " " + ChatColor.WHITE + playerName);
+            String playerName = offlinePlayer.getName() != null ? 
+                offlinePlayer.getName() : 
+                Messages.get("gui.stats.player.unknown");
+            meta.setDisplayName(Messages.get("gui.stats.rank.player", Map.of(
+                "rank", String.valueOf(rank),
+                "player", playerName
+            )));
             meta.setLore(Arrays.asList(stats));
             item.setItemMeta(meta);
         }
@@ -531,8 +577,8 @@ public class StatisticsGUI {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "< Back");
-            meta.setLore(Collections.singletonList(ChatColor.GRAY + "Return to categories"));
+            meta.setDisplayName(Messages.get("gui.stats.back.title"));
+            meta.setLore(Messages.getList("gui.stats.back.lore"));
             item.setItemMeta(meta);
         }
         return item;
@@ -542,32 +588,35 @@ public class StatisticsGUI {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.AQUA + "" + ChatColor.BOLD + "How It Works");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Stats update as captures happen",
-                ChatColor.GRAY + "and refresh each time you open.",
-                "",
-                ChatColor.GRAY + "All stats are public",
-                ChatColor.GRAY + "and visible to everyone."
-            ));
+            meta.setDisplayName(Messages.get("gui.stats.info.title"));
+            meta.setLore(Messages.getList("gui.stats.info.lore"));
             item.setItemMeta(meta);
         }
         return item;
     }
     
     private String formatDuration(long millis) {
-        if (millis == 0) return "N/A";
+        if (millis == 0) return Messages.get("gui.stats.duration.na");
         
         long days = TimeUnit.MILLISECONDS.toDays(millis);
         long hours = TimeUnit.MILLISECONDS.toHours(millis) % 24;
         long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60;
         
         if (days > 0) {
-            return String.format("%dd %dh %dm", days, hours, minutes);
+            return Messages.get("gui.stats.duration.days-hours-minutes", Map.of(
+                "days", String.valueOf(days),
+                "hours", String.valueOf(hours),
+                "minutes", String.valueOf(minutes)
+            ));
         } else if (hours > 0) {
-            return String.format("%dh %dm", hours, minutes);
+            return Messages.get("gui.stats.duration.hours-minutes", Map.of(
+                "hours", String.valueOf(hours),
+                "minutes", String.valueOf(minutes)
+            ));
         } else {
-            return String.format("%dm", minutes);
+            return Messages.get("gui.stats.duration.minutes", Map.of(
+                "minutes", String.valueOf(minutes)
+            ));
         }
     }
     

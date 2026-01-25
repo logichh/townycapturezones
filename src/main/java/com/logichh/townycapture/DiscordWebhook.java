@@ -180,15 +180,21 @@ public class DiscordWebhook {
         if (!isAlertEnabled("capture-started") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("⚔️ Capture Started!", 
-                townName + " has started capturing " + zoneName + "!",
+            sendEmbed(Messages.get("discord.capture.started.title"), 
+                Messages.get("discord.capture.started.description", Map.of(
+                    "town", townName,
+                    "zone", zoneName
+                )),
                 Color.YELLOW,
-                createField("Zone", zoneName, true),
-                createField("Town", townName, true),
-                showCoordinates ? createField("Location", location, true) : null
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.town"), townName, true),
+                showCoordinates ? createField(Messages.get("discord.field.location"), location, true) : null
             );
         } else {
-            sendPlainText("⚔️ **" + townName + "** has started capturing **" + zoneName + "**!");
+            sendPlainText(Messages.get("discord.capture.started.plain", Map.of(
+                "town", townName,
+                "zone", zoneName
+            )));
         }
     }
     
@@ -199,15 +205,21 @@ public class DiscordWebhook {
         if (!isAlertEnabled("capture-completed") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("✅ Capture Complete!", 
-                townName + " has successfully captured " + zoneName + "!",
+            sendEmbed(Messages.get("discord.capture.completed.title"), 
+                Messages.get("discord.capture.completed.description", Map.of(
+                    "town", townName,
+                    "zone", zoneName
+                )),
                 Color.GREEN,
-                createField("Zone", zoneName, true),
-                createField("Controlling Town", townName, true),
-                createField("Capture Time", captureTime, true)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.controlling-town"), townName, true),
+                createField(Messages.get("discord.field.capture-time"), captureTime, true)
             );
         } else {
-            sendPlainText("✅ **" + townName + "** has captured **" + zoneName + "**!");
+            sendPlainText(Messages.get("discord.capture.completed.plain", Map.of(
+                "town", townName,
+                "zone", zoneName
+            )));
         }
     }
     
@@ -218,15 +230,22 @@ public class DiscordWebhook {
         if (!isAlertEnabled("capture-failed") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("❌ Capture Failed!", 
-                townName + "'s capture of " + zoneName + " has failed.",
+            sendEmbed(Messages.get("discord.capture.failed.title"), 
+                Messages.get("discord.capture.failed.description", Map.of(
+                    "town", townName,
+                    "zone", zoneName
+                )),
                 Color.RED,
-                createField("Zone", zoneName, true),
-                createField("Town", townName, true),
-                createField("Reason", reason, false)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.town"), townName, true),
+                createField(Messages.get("discord.field.reason"), reason, false)
             );
         } else {
-            sendPlainText("❌ **" + townName + "** failed to capture **" + zoneName + "**. Reason: " + reason);
+            sendPlainText(Messages.get("discord.capture.failed.plain", Map.of(
+                "town", townName,
+                "zone", zoneName,
+                "reason", reason
+            )));
         }
     }
     
@@ -237,15 +256,22 @@ public class DiscordWebhook {
         if (!isAlertEnabled("capture-cancelled") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("⚠️ Capture Cancelled", 
-                townName + "'s capture of " + zoneName + " was cancelled.",
+            sendEmbed(Messages.get("discord.capture.cancelled.title"), 
+                Messages.get("discord.capture.cancelled.description", Map.of(
+                    "town", townName,
+                    "zone", zoneName
+                )),
                 Color.ORANGE,
-                createField("Zone", zoneName, true),
-                createField("Town", townName, true),
-                createField("Reason", reason, false)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.town"), townName, true),
+                createField(Messages.get("discord.field.reason"), reason, false)
             );
         } else {
-            sendPlainText("⚠️ **" + townName + "**'s capture of **" + zoneName + "** was cancelled. Reason: " + reason);
+            sendPlainText(Messages.get("discord.capture.cancelled.plain", Map.of(
+                "town", townName,
+                "zone", zoneName,
+                "reason", reason
+            )));
         }
     }
     
@@ -255,19 +281,30 @@ public class DiscordWebhook {
     public void sendRewardsDistributed(String zoneId, String zoneName, String townName, double amount, String rewardType) {
         if (!isAlertEnabled("rewards-distributed")) return;
         
-        String amountStr = showRewardsAmount ? String.format("$%.2f", amount) : "[Hidden]";
+        String amountStr = showRewardsAmount ? 
+            Messages.get("discord.format.currency", Map.of("amount", String.format("%.2f", amount))) : 
+            Messages.get("discord.value.hidden-amount");
         
         if (useEmbeds) {
-            sendEmbed("💰 Rewards Distributed", 
-                townName + " received " + rewardType + " rewards for controlling " + zoneName,
+            sendEmbed(Messages.get("discord.rewards.distributed.title"), 
+                Messages.get("discord.rewards.distributed.description", Map.of(
+                    "town", townName,
+                    "type", rewardType,
+                    "zone", zoneName
+                )),
                 new Color(255, 215, 0), // Gold
-                createField("Zone", zoneName, true),
-                createField("Town", townName, true),
-                showRewardsAmount ? createField("Amount", amountStr, true) : null,
-                createField("Type", rewardType, true)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.town"), townName, true),
+                showRewardsAmount ? createField(Messages.get("discord.field.amount"), amountStr, true) : null,
+                createField(Messages.get("discord.field.type"), rewardType, true)
             );
         } else {
-            sendPlainText("💰 **" + townName + "** received " + amountStr + " (" + rewardType + ") for **" + zoneName + "**!");
+            sendPlainText(Messages.get("discord.rewards.distributed.plain", Map.of(
+                "town", townName,
+                "amount", amountStr,
+                "type", rewardType,
+                "zone", zoneName
+            )));
         }
     }
     
@@ -278,15 +315,23 @@ public class DiscordWebhook {
         if (!isAlertEnabled("reinforcement-phases") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("🛡️ Reinforcements Arrived", 
-                "Phase " + phase + " defenders have spawned at " + zoneName,
+            sendEmbed(Messages.get("discord.reinforcements.title"), 
+                Messages.get("discord.reinforcements.description", Map.of(
+                    "phase", String.valueOf(phase),
+                    "zone", zoneName
+                )),
                 Color.RED,
-                createField("Zone", zoneName, true),
-                createField("Phase", String.valueOf(phase), true),
-                createField("Defenders", mobCount + " mobs", true)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.phase"), String.valueOf(phase), true),
+                createField(Messages.get("discord.field.defenders"), 
+                    Messages.get("discord.value.mobs", Map.of("count", String.valueOf(mobCount))), true)
             );
         } else {
-            sendPlainText("🛡️ **Phase " + phase + "** reinforcements arrived at **" + zoneName + "** (" + mobCount + " defenders)");
+            sendPlainText(Messages.get("discord.reinforcements.plain", Map.of(
+                "phase", String.valueOf(phase),
+                "zone", zoneName,
+                "count", String.valueOf(mobCount)
+            )));
         }
     }
     
@@ -297,17 +342,24 @@ public class DiscordWebhook {
         if (!isAlertEnabled("zone-created")) return;
         
         if (useEmbeds) {
-            sendEmbed("🆕 New Capture Zone Created", 
-                "A new capture zone has been created!",
+            String rewardStr = showRewardsAmount ? 
+                Messages.get("discord.format.currency", Map.of("amount", String.format("%.2f", reward))) : 
+                Messages.get("discord.value.hidden-amount");
+            sendEmbed(Messages.get("discord.zone.created.title"), 
+                Messages.get("discord.zone.created.description"),
                 Color.CYAN,
-                createField("Zone Name", zoneName, true),
-                createField("Type", type, true),
-                createField("Radius", radius + " chunks", true),
-                showRewardsAmount ? createField("Reward", String.format("$%.2f", reward), true) : null,
-                createField("Created By", creator, true)
+                createField(Messages.get("discord.field.zone-name"), zoneName, true),
+                createField(Messages.get("discord.field.type"), type, true),
+                createField(Messages.get("discord.field.radius"), 
+                    Messages.get("discord.value.chunks", Map.of("count", String.valueOf(radius))), true),
+                showRewardsAmount ? createField(Messages.get("discord.field.reward"), rewardStr, true) : null,
+                createField(Messages.get("discord.field.created-by"), creator, true)
             );
         } else {
-            sendPlainText("🆕 New zone **" + zoneName + "** created by **" + creator + "**!");
+            sendPlainText(Messages.get("discord.zone.created.plain", Map.of(
+                "zone", zoneName,
+                "creator", creator
+            )));
         }
     }
     
@@ -318,14 +370,17 @@ public class DiscordWebhook {
         if (!isAlertEnabled("zone-deleted")) return;
         
         if (useEmbeds) {
-            sendEmbed("🗑️ Capture Zone Deleted", 
-                zoneName + " has been permanently deleted.",
+            sendEmbed(Messages.get("discord.zone.deleted.title"), 
+                Messages.get("discord.zone.deleted.description", Map.of("zone", zoneName)),
                 Color.GRAY,
-                createField("Zone Name", zoneName, true),
-                createField("Deleted By", deletedBy, true)
+                createField(Messages.get("discord.field.zone-name"), zoneName, true),
+                createField(Messages.get("discord.field.deleted-by"), deletedBy, true)
             );
         } else {
-            sendPlainText("🗑️ Zone **" + zoneName + "** deleted by **" + deletedBy + "**");
+            sendPlainText(Messages.get("discord.zone.deleted.plain", Map.of(
+                "zone", zoneName,
+                "deleted_by", deletedBy
+            )));
         }
     }
     
@@ -336,14 +391,17 @@ public class DiscordWebhook {
         if (!isAlertEnabled("weekly-reset")) return;
         
         if (useEmbeds) {
-            sendEmbed("🔄 Weekly Reset Complete", 
-                "Weekly reset completed for configured zones.",
+            sendEmbed(Messages.get("discord.weekly-reset.title"), 
+                Messages.get("discord.weekly-reset.description"),
                 Color.MAGENTA,
-                createField("Zones Reset", String.valueOf(zonesReset), true),
-                createField("First Capture Bonus", "Active for reset zones!", false)
+                createField(Messages.get("discord.field.zones-reset"), String.valueOf(zonesReset), true),
+                createField(Messages.get("discord.field.first-capture-bonus"), 
+                    Messages.get("discord.value.first-capture-bonus-active"), false)
             );
         } else {
-            sendPlainText("🔄 **Weekly Reset Complete!** " + zonesReset + " zones have been neutralized. First capture bonus is active!");
+            sendPlainText(Messages.get("discord.weekly-reset.plain", Map.of(
+                "count", String.valueOf(zonesReset)
+            )));
         }
     }
     
@@ -353,18 +411,27 @@ public class DiscordWebhook {
     public void sendFirstCaptureBonus(String zoneId, String zoneName, String townName, double bonusAmount) {
         if (!isAlertEnabled("first-capture-bonus")) return;
         
-        String amountStr = showRewardsAmount ? String.format("$%.2f", bonusAmount) : "[Hidden]";
+        String amountStr = showRewardsAmount ? 
+            Messages.get("discord.format.currency", Map.of("amount", String.format("%.2f", bonusAmount))) : 
+            Messages.get("discord.value.hidden-amount");
         
         if (useEmbeds) {
-            sendEmbed("🎁 First Capture Bonus!", 
-                townName + " earned a bonus for being first to capture " + zoneName + " after reset!",
+            sendEmbed(Messages.get("discord.first-capture-bonus.title"), 
+                Messages.get("discord.first-capture-bonus.description", Map.of(
+                    "town", townName,
+                    "zone", zoneName
+                )),
                 new Color(255, 140, 0), // Dark orange
-                createField("Zone", zoneName, true),
-                createField("Town", townName, true),
-                showRewardsAmount ? createField("Bonus", amountStr, true) : null
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.town"), townName, true),
+                showRewardsAmount ? createField(Messages.get("discord.field.bonus"), amountStr, true) : null
             );
         } else {
-            sendPlainText("🎁 **" + townName + "** earned " + amountStr + " first capture bonus for **" + zoneName + "**!");
+            sendPlainText(Messages.get("discord.first-capture-bonus.plain", Map.of(
+                "town", townName,
+                "amount", amountStr,
+                "zone", zoneName
+            )));
         }
     }
     
@@ -375,15 +442,23 @@ public class DiscordWebhook {
         if (!isAlertEnabled("player-death") || isRateLimited(zoneId)) return;
         
         if (useEmbeds) {
-            sendEmbed("☠️ Player Death in Capture Zone", 
-                victim + " was killed by " + killer + " during " + townName + "'s capture attempt!",
+            sendEmbed(Messages.get("discord.player-death.title"), 
+                Messages.get("discord.player-death.description", Map.of(
+                    "victim", victim,
+                    "killer", killer,
+                    "town", townName
+                )),
                 Color.DARK_GRAY,
-                createField("Zone", zoneName, true),
-                createField("Victim", victim, true),
-                createField("Killer", killer, true)
+                createField(Messages.get("discord.field.zone"), zoneName, true),
+                createField(Messages.get("discord.field.victim"), victim, true),
+                createField(Messages.get("discord.field.killer"), killer, true)
             );
         } else {
-            sendPlainText("☠️ **" + victim + "** was killed by **" + killer + "** at **" + zoneName + "**!");
+            sendPlainText(Messages.get("discord.player-death.plain", Map.of(
+                "victim", victim,
+                "killer", killer,
+                "zone", zoneName
+            )));
         }
     }
     
@@ -394,15 +469,19 @@ public class DiscordWebhook {
         if (!isAlertEnabled("new-records")) return;
         
         if (useEmbeds) {
-            sendEmbed("🏆 New Server Record!", 
-                "A new " + recordType + " record has been set!",
+            sendEmbed(Messages.get("discord.records.new.title"), 
+                Messages.get("discord.records.new.description", Map.of("record", recordType)),
                 new Color(218, 165, 32), // Goldenrod
-                createField("Record Type", recordType, true),
-                createField("Holder", holder, true),
-                createField("Value", value, true)
+                createField(Messages.get("discord.field.record-type"), recordType, true),
+                createField(Messages.get("discord.field.holder"), holder, true),
+                createField(Messages.get("discord.field.value"), value, true)
             );
         } else {
-            sendPlainText("🏆 **New Record!** " + holder + " set a new " + recordType + " record: " + value);
+            sendPlainText(Messages.get("discord.records.new.plain", Map.of(
+                "holder", holder,
+                "record", recordType,
+                "value", value
+            )));
         }
     }
     
@@ -413,14 +492,17 @@ public class DiscordWebhook {
         if (!isAlertEnabled("milestones")) return;
         
         if (useEmbeds) {
-            sendEmbed("🎉 Milestone Reached!", 
-                entityName + " has reached a new milestone!",
+            sendEmbed(Messages.get("discord.milestone.title"), 
+                Messages.get("discord.milestone.description", Map.of("entity", entityName)),
                 Color.PINK,
                 createField(entityType, entityName, true),
-                createField("Milestone", milestone, false)
+                createField(Messages.get("discord.field.milestone"), milestone, false)
             );
         } else {
-            sendPlainText("🎉 **" + entityName + "** reached milestone: " + milestone);
+            sendPlainText(Messages.get("discord.milestone.plain", Map.of(
+                "entity", entityName,
+                "milestone", milestone
+            )));
         }
     }
     
@@ -593,14 +675,14 @@ public class DiscordWebhook {
         
         try {
             if (useEmbeds) {
-                sendEmbed("✅ Webhook Test", 
-                    "TownyCapture Discord webhook is working correctly!",
+                sendEmbed(Messages.get("discord.test.title"), 
+                    Messages.get("discord.test.description"),
                     Color.GREEN,
-                    createField("Status", "Connected", true),
-                    createField("Plugin Version", plugin.getDescription().getVersion(), true)
+                    createField(Messages.get("discord.field.status"), Messages.get("discord.value.connected"), true),
+                    createField(Messages.get("discord.field.plugin-version"), plugin.getDescription().getVersion(), true)
                 );
             } else {
-                sendPlainText("✅ **TownyCapture webhook test successful!**");
+                sendPlainText(Messages.get("discord.test.plain"));
             }
             return true;
         } catch (Exception e) {

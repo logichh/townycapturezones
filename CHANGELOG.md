@@ -1,5 +1,23 @@
 # TownyCapture - Change Log
 
+## Version 1.1.1 - [2026-01-25]
+
+### Added
+
+#### 🔧 Zone Protection Controls
+- Per-zone toggles to allow **ender pearls** and **chorus fruit** even when teleporting is blocked
+- New zone config keys: `protection.allow-ender-pearls` and `protection.allow-chorus-fruit`
+
+#### 🌐 Localization Coverage
+- Discord webhook titles/descriptions/fields now fully translatable
+- Statistics GUI menus and shop/shop-editor menus now fully translatable
+- New translation keys added to `lang/en.json`
+
+### Changed
+- Shop quantity selection now uses slot mapping (translation-safe, no parsing display names)
+- GUI title detection for shop/stats menus now uses translated titles
+- Language bootstrap no longer attempts to copy a non-existent `lang/fr.json`
+
 ## Version 1.1.0 hotfix - [2026-01-17]
 
 ### Fixed

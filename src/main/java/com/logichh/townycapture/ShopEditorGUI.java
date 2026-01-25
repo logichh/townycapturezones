@@ -1,7 +1,6 @@
 package com.logichh.townycapture;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -54,8 +53,10 @@ public class ShopEditorGUI {
         ItemStack toggle = new ItemStack(shop.isEnabled() ? Material.LIME_DYE : Material.GRAY_DYE);
         ItemMeta toggleMeta = toggle.getItemMeta();
         if (toggleMeta != null) {
-            toggleMeta.setDisplayName(shop.isEnabled() ? ChatColor.GREEN + "Shop Enabled" : ChatColor.GRAY + "Shop Disabled");
-            toggleMeta.setLore(Arrays.asList(ChatColor.GRAY + "Click to toggle"));
+            toggleMeta.setDisplayName(Messages.get(shop.isEnabled() ? 
+                "gui.editor.main.toggle.enabled" : 
+                "gui.editor.main.toggle.disabled"));
+            toggleMeta.setLore(Messages.getList("gui.editor.main.toggle.lore"));
             toggle.setItemMeta(toggleMeta);
         }
         inv.setItem(10, toggle);
@@ -64,16 +65,14 @@ public class ShopEditorGUI {
         ItemStack settings = new ItemStack(Material.COMPARATOR);
         ItemMeta settingsMeta = settings.getItemMeta();
         if (settingsMeta != null) {
-            settingsMeta.setDisplayName(ChatColor.YELLOW + "Shop Settings");
-            settingsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Access: " + ChatColor.WHITE + shop.getAccessMode().name(),
-                ChatColor.GRAY + "Stock: " + ChatColor.WHITE + shop.getStockSystem().name(),
-                ChatColor.GRAY + "Layout: " + ChatColor.WHITE + shop.getLayoutMode().name(),
-                ChatColor.GRAY + "Pricing: " + ChatColor.WHITE + shop.getPricingMode().name(),
-                ChatColor.GRAY + "Restock: " + ChatColor.WHITE + shop.getRestockSchedule().name(),
-                "",
-                ChatColor.GRAY + "Click to configure"
-            ));
+            settingsMeta.setDisplayName(Messages.get("gui.editor.main.settings.title"));
+            settingsMeta.setLore(Messages.getList("gui.editor.main.settings.lore", Map.of(
+                "access", getAccessModeLabel(shop.getAccessMode()),
+                "stock", getStockSystemLabel(shop.getStockSystem()),
+                "layout", getLayoutModeLabel(shop.getLayoutMode()),
+                "pricing", getPricingModeLabel(shop.getPricingMode()),
+                "restock", getRestockScheduleLabel(shop.getRestockSchedule())
+            )));
             settings.setItemMeta(settingsMeta);
         }
         inv.setItem(11, settings);
@@ -82,12 +81,10 @@ public class ShopEditorGUI {
         ItemStack items = new ItemStack(Material.CHEST);
         ItemMeta itemsMeta = items.getItemMeta();
         if (itemsMeta != null) {
-            itemsMeta.setDisplayName(ChatColor.YELLOW + "Manage Items");
-            itemsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current items: " + ChatColor.WHITE + shop.getItems().size(),
-                "",
-                ChatColor.GRAY + "Click to edit items"
-            ));
+            itemsMeta.setDisplayName(Messages.get("gui.editor.main.items.title"));
+            itemsMeta.setLore(Messages.getList("gui.editor.main.items.lore", Map.of(
+                "count", String.valueOf(shop.getItems().size())
+            )));
             items.setItemMeta(itemsMeta);
         }
         inv.setItem(12, items);
@@ -96,14 +93,12 @@ public class ShopEditorGUI {
         ItemStack stats = new ItemStack(Material.BOOK);
         ItemMeta statsMeta = stats.getItemMeta();
         if (statsMeta != null) {
-            statsMeta.setDisplayName(ChatColor.YELLOW + "Statistics");
-            statsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Total Buys: " + ChatColor.WHITE + shop.getTotalBuys(),
-                ChatColor.GRAY + "Total Sells: " + ChatColor.WHITE + shop.getTotalSells(),
-                ChatColor.GRAY + "Revenue: " + ChatColor.GOLD + String.format("%.2f", shop.getTotalRevenue()),
-                "",
-                ChatColor.GRAY + "Click to view details"
-            ));
+            statsMeta.setDisplayName(Messages.get("gui.editor.main.stats.title"));
+            statsMeta.setLore(Messages.getList("gui.editor.main.stats.lore", Map.of(
+                "buys", String.valueOf(shop.getTotalBuys()),
+                "sells", String.valueOf(shop.getTotalSells()),
+                "revenue", String.format("%.2f", shop.getTotalRevenue())
+            )));
             stats.setItemMeta(statsMeta);
         }
         inv.setItem(13, stats);
@@ -112,8 +107,8 @@ public class ShopEditorGUI {
         ItemStack restock = new ItemStack(Material.HOPPER);
         ItemMeta restockMeta = restock.getItemMeta();
         if (restockMeta != null) {
-            restockMeta.setDisplayName(ChatColor.YELLOW + "Manual Restock");
-            restockMeta.setLore(Arrays.asList(ChatColor.GRAY + "Click to restock all items"));
+            restockMeta.setDisplayName(Messages.get("gui.editor.main.restock.title"));
+            restockMeta.setLore(Messages.getList("gui.editor.main.restock.lore"));
             restock.setItemMeta(restockMeta);
         }
         inv.setItem(14, restock);
@@ -122,7 +117,7 @@ public class ShopEditorGUI {
         ItemStack save = new ItemStack(Material.EMERALD);
         ItemMeta saveMeta = save.getItemMeta();
         if (saveMeta != null) {
-            saveMeta.setDisplayName(ChatColor.GREEN + "Save & Close");
+            saveMeta.setDisplayName(Messages.get("gui.editor.main.save"));
             save.setItemMeta(saveMeta);
         }
         inv.setItem(22, save);
@@ -143,16 +138,13 @@ public class ShopEditorGUI {
         ItemStack access = new ItemStack(Material.OAK_DOOR);
         ItemMeta accessMeta = access.getItemMeta();
         if (accessMeta != null) {
-            accessMeta.setDisplayName(ChatColor.YELLOW + "Access Mode");
-            accessMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + shop.getAccessMode().name(),
-                "",
-                ChatColor.WHITE + "ALWAYS: " + ChatColor.GRAY + "Anyone can use",
-                ChatColor.WHITE + "CONTROLLED_ONLY: " + ChatColor.GRAY + "Controlling town only",
-                ChatColor.WHITE + "OWNER_ONLY: " + ChatColor.GRAY + "Owner town only",
-                "",
-                ChatColor.GRAY + "Click to cycle"
-            ));
+            accessMeta.setDisplayName(Messages.get("gui.editor.settings.access.title"));
+            accessMeta.setLore(Messages.getList("gui.editor.settings.access.lore", Map.of(
+                "current", getAccessModeLabel(shop.getAccessMode()),
+                "always", getAccessModeLabel(ShopData.AccessMode.ALWAYS),
+                "controlled_only", getAccessModeLabel(ShopData.AccessMode.CONTROLLED_ONLY),
+                "owner_only", getAccessModeLabel(ShopData.AccessMode.OWNER_ONLY)
+            )));
             access.setItemMeta(accessMeta);
         }
         inv.setItem(10, access);
@@ -161,16 +153,13 @@ public class ShopEditorGUI {
         ItemStack stock = new ItemStack(Material.CHEST);
         ItemMeta stockMeta = stock.getItemMeta();
         if (stockMeta != null) {
-            stockMeta.setDisplayName(ChatColor.YELLOW + "Stock System");
-            stockMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + shop.getStockSystem().name(),
-                "",
-                ChatColor.WHITE + "INFINITE: " + ChatColor.GRAY + "Unlimited stock",
-                ChatColor.WHITE + "LIMITED: " + ChatColor.GRAY + "Stock restocks",
-                ChatColor.WHITE + "FINITE: " + ChatColor.GRAY + "Stock never restocks",
-                "",
-                ChatColor.GRAY + "Click to cycle"
-            ));
+            stockMeta.setDisplayName(Messages.get("gui.editor.settings.stock.title"));
+            stockMeta.setLore(Messages.getList("gui.editor.settings.stock.lore", Map.of(
+                "current", getStockSystemLabel(shop.getStockSystem()),
+                "infinite", getStockSystemLabel(ShopData.StockSystem.INFINITE),
+                "limited", getStockSystemLabel(ShopData.StockSystem.LIMITED),
+                "finite", getStockSystemLabel(ShopData.StockSystem.FINITE)
+            )));
             stock.setItemMeta(stockMeta);
         }
         inv.setItem(11, stock);
@@ -179,16 +168,13 @@ public class ShopEditorGUI {
         ItemStack layout = new ItemStack(Material.PAINTING);
         ItemMeta layoutMeta = layout.getItemMeta();
         if (layoutMeta != null) {
-            layoutMeta.setDisplayName(ChatColor.YELLOW + "Layout Mode");
-            layoutMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + shop.getLayoutMode().name(),
-                "",
-                ChatColor.WHITE + "SINGLE_PAGE: " + ChatColor.GRAY + "One inventory",
-                ChatColor.WHITE + "CATEGORIES: " + ChatColor.GRAY + "Organized by category",
-                ChatColor.WHITE + "PAGINATED: " + ChatColor.GRAY + "Multiple pages",
-                "",
-                ChatColor.GRAY + "Click to cycle"
-            ));
+            layoutMeta.setDisplayName(Messages.get("gui.editor.settings.layout.title"));
+            layoutMeta.setLore(Messages.getList("gui.editor.settings.layout.lore", Map.of(
+                "current", getLayoutModeLabel(shop.getLayoutMode()),
+                "single_page", getLayoutModeLabel(ShopData.LayoutMode.SINGLE_PAGE),
+                "categories", getLayoutModeLabel(ShopData.LayoutMode.CATEGORIES),
+                "paginated", getLayoutModeLabel(ShopData.LayoutMode.PAGINATED)
+            )));
             layout.setItemMeta(layoutMeta);
         }
         inv.setItem(12, layout);
@@ -197,15 +183,12 @@ public class ShopEditorGUI {
         ItemStack pricing = new ItemStack(Material.GOLD_INGOT);
         ItemMeta pricingMeta = pricing.getItemMeta();
         if (pricingMeta != null) {
-            pricingMeta.setDisplayName(ChatColor.YELLOW + "Pricing Mode");
-            pricingMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + shop.getPricingMode().name(),
-                "",
-                ChatColor.WHITE + "FIXED: " + ChatColor.GRAY + "Prices never change",
-                ChatColor.WHITE + "DYNAMIC: " + ChatColor.GRAY + "Prices adjust with supply/demand",
-                "",
-                ChatColor.GRAY + "Click to cycle"
-            ));
+            pricingMeta.setDisplayName(Messages.get("gui.editor.settings.pricing.title"));
+            pricingMeta.setLore(Messages.getList("gui.editor.settings.pricing.lore", Map.of(
+                "current", getPricingModeLabel(shop.getPricingMode()),
+                "fixed", getPricingModeLabel(ShopData.PricingMode.FIXED),
+                "dynamic", getPricingModeLabel(ShopData.PricingMode.DYNAMIC)
+            )));
             pricing.setItemMeta(pricingMeta);
         }
         inv.setItem(13, pricing);
@@ -214,17 +197,14 @@ public class ShopEditorGUI {
         ItemStack restock = new ItemStack(Material.CLOCK);
         ItemMeta restockMeta = restock.getItemMeta();
         if (restockMeta != null) {
-            restockMeta.setDisplayName(ChatColor.YELLOW + "Restock Schedule");
-            restockMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + shop.getRestockSchedule().name(),
-                "",
-                ChatColor.WHITE + "HOURLY: " + ChatColor.GRAY + "Every hour",
-                ChatColor.WHITE + "DAILY: " + ChatColor.GRAY + "Every 24 hours",
-                ChatColor.WHITE + "WEEKLY: " + ChatColor.GRAY + "Every 7 days",
-                ChatColor.WHITE + "MANUAL: " + ChatColor.GRAY + "Admin only",
-                "",
-                ChatColor.GRAY + "Click to cycle"
-            ));
+            restockMeta.setDisplayName(Messages.get("gui.editor.settings.restock.title"));
+            restockMeta.setLore(Messages.getList("gui.editor.settings.restock.lore", Map.of(
+                "current", getRestockScheduleLabel(shop.getRestockSchedule()),
+                "hourly", getRestockScheduleLabel(ShopData.RestockSchedule.HOURLY),
+                "daily", getRestockScheduleLabel(ShopData.RestockSchedule.DAILY),
+                "weekly", getRestockScheduleLabel(ShopData.RestockSchedule.WEEKLY),
+                "manual", getRestockScheduleLabel(ShopData.RestockSchedule.MANUAL)
+            )));
             restock.setItemMeta(restockMeta);
         }
         inv.setItem(14, restock);
@@ -233,7 +213,7 @@ public class ShopEditorGUI {
         ItemStack back = new ItemStack(Material.ARROW);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.setDisplayName(ChatColor.GRAY + "Back");
+            backMeta.setDisplayName(Messages.get("gui.editor.settings.back"));
             back.setItemMeta(backMeta);
         }
         inv.setItem(22, back);
@@ -261,13 +241,8 @@ public class ShopEditorGUI {
         ItemStack info = new ItemStack(Material.BOOK);
         ItemMeta infoMeta = info.getItemMeta();
         if (infoMeta != null) {
-            infoMeta.setDisplayName(ChatColor.YELLOW + "How to Edit");
-            infoMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "- Click empty slot to place",
-                ChatColor.GRAY + "- Shift-click to auto-place",
-                ChatColor.GRAY + "- Click items to configure",
-                ChatColor.GRAY + "- Shift-click to remove"
-            ));
+            infoMeta.setDisplayName(Messages.get("gui.editor.items.info.title"));
+            infoMeta.setLore(Messages.getList("gui.editor.items.info.lore"));
             info.setItemMeta(infoMeta);
         }
         
@@ -275,7 +250,7 @@ public class ShopEditorGUI {
         ItemStack back = new ItemStack(Material.BARRIER);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.setDisplayName(ChatColor.RED + "Back");
+            backMeta.setDisplayName(Messages.get("gui.editor.items.back"));
             back.setItemMeta(backMeta);
         }
 
@@ -314,12 +289,12 @@ public class ShopEditorGUI {
         ItemStack buyable = new ItemStack(item.isBuyable() ? Material.LIME_DYE : Material.GRAY_DYE);
         ItemMeta buyableMeta = buyable.getItemMeta();
         if (buyableMeta != null) {
-            buyableMeta.setDisplayName(item.isBuyable() ? ChatColor.GREEN + "Buyable" : ChatColor.GRAY + "Not Buyable");
-            buyableMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Buy Price: " + ChatColor.YELLOW + item.getBuyPrice(),
-                "",
-                ChatColor.GRAY + "Click to toggle"
-            ));
+            buyableMeta.setDisplayName(Messages.get(item.isBuyable() ? 
+                "gui.editor.config.buyable.enabled" : 
+                "gui.editor.config.buyable.disabled"));
+            buyableMeta.setLore(Messages.getList("gui.editor.config.buyable.lore", Map.of(
+                "price", String.format("%.2f", item.getBuyPrice())
+            )));
             buyable.setItemMeta(buyableMeta);
         }
         inv.setItem(10, buyable);
@@ -328,12 +303,12 @@ public class ShopEditorGUI {
         ItemStack sellable = new ItemStack(item.isSellable() ? Material.RED_DYE : Material.GRAY_DYE);
         ItemMeta sellableMeta = sellable.getItemMeta();
         if (sellableMeta != null) {
-            sellableMeta.setDisplayName(item.isSellable() ? ChatColor.RED + "Sellable" : ChatColor.GRAY + "Not Sellable");
-            sellableMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Sell Price: " + ChatColor.YELLOW + item.getSellPrice(),
-                "",
-                ChatColor.GRAY + "Click to toggle"
-            ));
+            sellableMeta.setDisplayName(Messages.get(item.isSellable() ? 
+                "gui.editor.config.sellable.enabled" : 
+                "gui.editor.config.sellable.disabled"));
+            sellableMeta.setLore(Messages.getList("gui.editor.config.sellable.lore", Map.of(
+                "price", String.format("%.2f", item.getSellPrice())
+            )));
             sellable.setItemMeta(sellableMeta);
         }
         inv.setItem(11, sellable);
@@ -342,16 +317,14 @@ public class ShopEditorGUI {
         ItemStack stockItem = new ItemStack(Material.CHEST);
         ItemMeta stockMeta = stockItem.getItemMeta();
         if (stockMeta != null) {
-            String currentStock = isUnlimitedStock(item) ? "Unlimited" : String.valueOf(item.getStock());
-            String maxStock = isUnlimitedStock(item) ? "Unlimited" : String.valueOf(item.getMaxStock());
-            stockMeta.setDisplayName(ChatColor.YELLOW + "Stock");
-            stockMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + currentStock,
-                ChatColor.GRAY + "Max: " + ChatColor.WHITE + maxStock,
-                "",
-                ChatColor.GRAY + "Click to set max stock in chat",
-                ChatColor.GRAY + "Use -1 for unlimited"
-            ));
+            String unlimited = Messages.get("gui.editor.stock.unlimited");
+            String currentStock = isUnlimitedStock(item) ? unlimited : String.valueOf(item.getStock());
+            String maxStock = isUnlimitedStock(item) ? unlimited : String.valueOf(item.getMaxStock());
+            stockMeta.setDisplayName(Messages.get("gui.editor.config.stock.title"));
+            stockMeta.setLore(Messages.getList("gui.editor.config.stock.lore", Map.of(
+                "current", currentStock,
+                "max", maxStock
+            )));
             stockItem.setItemMeta(stockMeta);
         }
         inv.setItem(12, stockItem);
@@ -360,13 +333,11 @@ public class ShopEditorGUI {
         ItemStack category = new ItemStack(Material.NAME_TAG);
         ItemMeta categoryMeta = category.getItemMeta();
         if (categoryMeta != null) {
-            categoryMeta.setDisplayName(ChatColor.YELLOW + "Category");
-            String cat = item.getCategory() != null ? item.getCategory() : "None";
-            categoryMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + cat,
-                "",
-                ChatColor.GRAY + "Type in chat to set"
-            ));
+            categoryMeta.setDisplayName(Messages.get("gui.editor.config.category.title"));
+            String cat = item.getCategory() != null ? item.getCategory() : Messages.get("gui.editor.category.none");
+            categoryMeta.setLore(Messages.getList("gui.editor.config.category.lore", Map.of(
+                "category", cat
+            )));
             category.setItemMeta(categoryMeta);
         }
         inv.setItem(13, category);
@@ -375,12 +346,10 @@ public class ShopEditorGUI {
         ItemStack slotItem = new ItemStack(Material.COMPASS);
         ItemMeta slotMeta = slotItem.getItemMeta();
         if (slotMeta != null) {
-            slotMeta.setDisplayName(ChatColor.YELLOW + "Display Slot");
-            slotMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + item.getSlot(),
-                "",
-                ChatColor.GRAY + "Click to set slot in chat"
-            ));
+            slotMeta.setDisplayName(Messages.get("gui.editor.config.slot.title"));
+            slotMeta.setLore(Messages.getList("gui.editor.config.slot.lore", Map.of(
+                "slot", String.valueOf(item.getSlot())
+            )));
             slotItem.setItemMeta(slotMeta);
         }
         inv.setItem(14, slotItem);
@@ -389,12 +358,10 @@ public class ShopEditorGUI {
         ItemStack buyPrice = new ItemStack(Material.EMERALD);
         ItemMeta buyPriceMeta = buyPrice.getItemMeta();
         if (buyPriceMeta != null) {
-            buyPriceMeta.setDisplayName(ChatColor.YELLOW + "Buy Price");
-            buyPriceMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + String.format("%.2f", item.getBuyPrice()),
-                "",
-                ChatColor.GRAY + "Click to set in chat"
-            ));
+            buyPriceMeta.setDisplayName(Messages.get("gui.editor.config.buy-price.title"));
+            buyPriceMeta.setLore(Messages.getList("gui.editor.config.buy-price.lore", Map.of(
+                "price", String.format("%.2f", item.getBuyPrice())
+            )));
             buyPrice.setItemMeta(buyPriceMeta);
         }
         inv.setItem(15, buyPrice);
@@ -403,12 +370,10 @@ public class ShopEditorGUI {
         ItemStack sellPrice = new ItemStack(Material.GOLD_INGOT);
         ItemMeta sellPriceMeta = sellPrice.getItemMeta();
         if (sellPriceMeta != null) {
-            sellPriceMeta.setDisplayName(ChatColor.YELLOW + "Sell Price");
-            sellPriceMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + String.format("%.2f", item.getSellPrice()),
-                "",
-                ChatColor.GRAY + "Click to set in chat"
-            ));
+            sellPriceMeta.setDisplayName(Messages.get("gui.editor.config.sell-price.title"));
+            sellPriceMeta.setLore(Messages.getList("gui.editor.config.sell-price.lore", Map.of(
+                "price", String.format("%.2f", item.getSellPrice())
+            )));
             sellPrice.setItemMeta(sellPriceMeta);
         }
         inv.setItem(16, sellPrice);
@@ -417,7 +382,7 @@ public class ShopEditorGUI {
         ItemStack save = new ItemStack(Material.EMERALD);
         ItemMeta saveMeta = save.getItemMeta();
         if (saveMeta != null) {
-            saveMeta.setDisplayName(ChatColor.GREEN + "Save");
+            saveMeta.setDisplayName(Messages.get("gui.editor.config.save"));
             save.setItemMeta(saveMeta);
         }
         inv.setItem(22, save);
@@ -438,8 +403,10 @@ public class ShopEditorGUI {
         ItemStack buys = new ItemStack(Material.GREEN_WOOL);
         ItemMeta buysMeta = buys.getItemMeta();
         if (buysMeta != null) {
-            buysMeta.setDisplayName(ChatColor.GREEN + "Total Purchases");
-            buysMeta.setLore(Arrays.asList(ChatColor.WHITE + String.valueOf(shop.getTotalBuys())));
+            buysMeta.setDisplayName(Messages.get("gui.editor.stats.buys.title"));
+            buysMeta.setLore(Arrays.asList(Messages.get("gui.editor.stats.value", Map.of(
+                "value", String.valueOf(shop.getTotalBuys())
+            ))));
             buys.setItemMeta(buysMeta);
         }
         inv.setItem(11, buys);
@@ -448,8 +415,10 @@ public class ShopEditorGUI {
         ItemStack sells = new ItemStack(Material.RED_WOOL);
         ItemMeta sellsMeta = sells.getItemMeta();
         if (sellsMeta != null) {
-            sellsMeta.setDisplayName(ChatColor.RED + "Total Sales");
-            sellsMeta.setLore(Arrays.asList(ChatColor.WHITE + String.valueOf(shop.getTotalSells())));
+            sellsMeta.setDisplayName(Messages.get("gui.editor.stats.sells.title"));
+            sellsMeta.setLore(Arrays.asList(Messages.get("gui.editor.stats.value", Map.of(
+                "value", String.valueOf(shop.getTotalSells())
+            ))));
             sells.setItemMeta(sellsMeta);
         }
         inv.setItem(13, sells);
@@ -458,8 +427,10 @@ public class ShopEditorGUI {
         ItemStack revenue = new ItemStack(Material.GOLD_INGOT);
         ItemMeta revenueMeta = revenue.getItemMeta();
         if (revenueMeta != null) {
-            revenueMeta.setDisplayName(ChatColor.YELLOW + "Total Revenue");
-            revenueMeta.setLore(Arrays.asList(ChatColor.WHITE + String.format("%.2f", shop.getTotalRevenue())));
+            revenueMeta.setDisplayName(Messages.get("gui.editor.stats.revenue.title"));
+            revenueMeta.setLore(Arrays.asList(Messages.get("gui.editor.stats.value", Map.of(
+                "value", String.format("%.2f", shop.getTotalRevenue())
+            ))));
             revenue.setItemMeta(revenueMeta);
         }
         inv.setItem(15, revenue);
@@ -468,7 +439,7 @@ public class ShopEditorGUI {
         ItemStack back = new ItemStack(Material.ARROW);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.setDisplayName(ChatColor.GRAY + "Back");
+            backMeta.setDisplayName(Messages.get("gui.editor.stats.back"));
             back.setItemMeta(backMeta);
         }
         inv.setItem(22, back);
@@ -489,14 +460,33 @@ public class ShopEditorGUI {
         
         if (meta != null) {
             List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.GRAY + "Slot: " + ChatColor.WHITE + item.getSlot());
-            if (item.isBuyable()) lore.add(ChatColor.GREEN + "Buy: " + ChatColor.YELLOW + item.getBuyPrice());
-            if (item.isSellable()) lore.add(ChatColor.RED + "Sell: " + ChatColor.YELLOW + item.getSellPrice());
-            lore.add(ChatColor.GRAY + "Stock: " + ChatColor.WHITE + (isUnlimitedStock(item) ? "Unlimited" : String.valueOf(item.getStock())));
-            if (item.getCategory() != null) lore.add(ChatColor.GRAY + "Category: " + ChatColor.WHITE + item.getCategory());
+            lore.add(Messages.get("gui.editor.item.lore.slot", Map.of(
+                "slot", String.valueOf(item.getSlot())
+            )));
+            if (item.isBuyable()) {
+                lore.add(Messages.get("gui.editor.item.lore.buy", Map.of(
+                    "price", String.format("%.2f", item.getBuyPrice())
+                )));
+            }
+            if (item.isSellable()) {
+                lore.add(Messages.get("gui.editor.item.lore.sell", Map.of(
+                    "price", String.format("%.2f", item.getSellPrice())
+                )));
+            }
+            String stockValue = isUnlimitedStock(item) ? 
+                Messages.get("gui.editor.stock.unlimited") : 
+                String.valueOf(item.getStock());
+            lore.add(Messages.get("gui.editor.item.lore.stock", Map.of(
+                "stock", stockValue
+            )));
+            if (item.getCategory() != null) {
+                lore.add(Messages.get("gui.editor.item.lore.category", Map.of(
+                    "category", item.getCategory()
+                )));
+            }
             lore.add("");
-            lore.add(ChatColor.GRAY + "Click to configure");
-            lore.add(ChatColor.GRAY + "Shift-click to remove");
+            lore.add(Messages.get("gui.editor.item.lore.click-configure"));
+            lore.add(Messages.get("gui.editor.item.lore.shift-remove"));
             
             meta.setLore(lore);
             display.setItemMeta(meta);
@@ -507,6 +497,31 @@ public class ShopEditorGUI {
 
     private boolean isUnlimitedStock(ShopItemConfig item) {
         return shop.getStockSystem() == ShopData.StockSystem.INFINITE || item.getMaxStock() < 0;
+    }
+
+    private String getAccessModeLabel(ShopData.AccessMode mode) {
+        return getEnumLabel("gui.shop.access-mode.", mode);
+    }
+
+    private String getStockSystemLabel(ShopData.StockSystem system) {
+        return getEnumLabel("gui.shop.stock-system.", system);
+    }
+
+    private String getLayoutModeLabel(ShopData.LayoutMode mode) {
+        return getEnumLabel("gui.shop.layout-mode.", mode);
+    }
+
+    private String getPricingModeLabel(ShopData.PricingMode mode) {
+        return getEnumLabel("gui.shop.pricing-mode.", mode);
+    }
+
+    private String getRestockScheduleLabel(ShopData.RestockSchedule schedule) {
+        return getEnumLabel("gui.shop.restock-schedule.", schedule);
+    }
+
+    private String getEnumLabel(String baseKey, Enum<?> value) {
+        String key = baseKey + value.name().toLowerCase(Locale.ROOT).replace('_', '-');
+        return Messages.get(key);
     }
     
     // Getters

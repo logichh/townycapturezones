@@ -162,6 +162,10 @@ protection:
   prevent-homes: true
   # Prevent teleporting into or out of the zone
   prevent-teleporting: true
+  # Allow ender pearls even when teleporting is blocked
+  allow-ender-pearls: false
+  # Allow chorus fruit even when teleporting is blocked
+  allow-chorus-fruit: false
   # Prevent item use (potions, buckets, ender pearls, etc.)
   prevent-item-use: false
   # Prevent block breaking

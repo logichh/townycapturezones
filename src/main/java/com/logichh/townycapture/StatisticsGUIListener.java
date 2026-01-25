@@ -1,6 +1,5 @@
 package com.logichh.townycapture;
 
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,18 +23,13 @@ public class StatisticsGUIListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
-        
-        String title = event.getView().getTitle();
-        
-        // Check if it's a statistics menu
-        if (!title.contains("Statistics") && !title.contains("Server Records")) {
+        Player player = (Player) event.getWhoClicked();
+
+        if (!gui.isStatsView(player, event.getView())) {
             return;
         }
-        
-        // Cancel all clicks in statistics menus
+
         event.setCancelled(true);
-        
-        Player player = (Player) event.getWhoClicked();
         int slot = event.getRawSlot();
         
         // Only handle clicks in the top inventory
@@ -50,22 +44,17 @@ public class StatisticsGUIListener implements Listener {
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player)) return;
-        
-        String title = event.getView().getTitle();
-        
-        // Check if it's a statistics menu
-        if (!title.contains("Statistics") && !title.contains("Server Records")) {
+
+        Player player = (Player) event.getPlayer();
+        if (!gui.isStatsView(player, event.getView())) {
             return;
         }
-        
-        Player player = (Player) event.getPlayer();
         
         // Delay removal to allow navigation between menus
         // If player opens a new stats menu immediately, don't clear the session
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             // Only clear if player doesn't have a stats menu open
-            String currentTitle = player.getOpenInventory().getTitle();
-            if (!currentTitle.contains("Statistics") && !currentTitle.contains("Server Records")) {
+            if (!gui.isStatsView(player, player.getOpenInventory())) {
                 gui.closeMenu(player);
             }
         }, 1L);
@@ -74,12 +63,10 @@ public class StatisticsGUIListener implements Listener {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
-
-        String title = event.getView().getTitle();
-        if (!title.contains("Statistics") && !title.contains("Server Records")) {
+        Player player = (Player) event.getWhoClicked();
+        if (!gui.isStatsView(player, event.getView())) {
             return;
         }
-
         event.setCancelled(true);
     }
 }

@@ -312,38 +312,27 @@ public class ShopListener implements Listener {
             player.sendMessage(Messages.get("errors.shop.out-of-stock"));
             return;
         }
-        
-        // Extract quantity from display name
-        if (!clicked.hasItemMeta()) return;
-        ItemMeta meta = clicked.getItemMeta();
-        if (meta == null || !meta.hasDisplayName()) return;
-        
-        String name = meta.getDisplayName();
-        String[] parts = name.split(" ");
-        if (parts.length < 2) return;
-        
-        try {
-            int quantity = Integer.parseInt(parts[parts.length - 1]);
-            
-            ShopManager manager = plugin.getShopManager();
-            boolean success;
-            
-            if (gui.isBuyMode()) {
-                success = manager.processBuy(player, gui.getZoneId(), 
-                    gui.getSelectedItem().getSlot(), quantity);
-            } else {
-                success = manager.processSell(player, gui.getZoneId(), 
-                    gui.getSelectedItem().getSlot(), quantity);
-            }
-            
-            if (success) {
-                player.closeInventory();
-            } else {
-                gui.open();
-            }
-        } catch (NumberFormatException e) {
-            // Invalid quantity format, ignore
+
+        Integer quantity = gui.getQuantityForSlot(slot);
+        if (quantity == null) {
             return;
+        }
+
+        ShopManager manager = plugin.getShopManager();
+        boolean success;
+        
+        if (gui.isBuyMode()) {
+            success = manager.processBuy(player, gui.getZoneId(), 
+                gui.getSelectedItem().getSlot(), quantity);
+        } else {
+            success = manager.processSell(player, gui.getZoneId(), 
+                gui.getSelectedItem().getSlot(), quantity);
+        }
+        
+        if (success) {
+            player.closeInventory();
+        } else {
+            gui.open();
         }
     }
     
@@ -693,9 +682,15 @@ public class ShopListener implements Listener {
         if (current != null) {
             return current.equals(view.getTopInventory());
         }
-        String plainTitle = ChatColor.stripColor(view.getTitle());
-        return plainTitle.contains("Zone Shop") || plainTitle.contains("Select Quantity") ||
-            plainTitle.contains("- Page");
+        String title = view.getTitle();
+        return titleMatches(title, Messages.get("gui.shop.title", Map.of("zone", ""))) ||
+            titleMatches(title, Messages.get("gui.shop.quantity-title", Map.of("item", ""))) ||
+            titleMatches(title, Messages.get("gui.shop.page-title", Map.of("page", ""))) ||
+            titleMatches(title, Messages.get("gui.shop.category-page-title", Map.of(
+                "category", "",
+                "page", ""
+            ))) ||
+            titleMatches(title, Messages.get("gui.shop.categories-title"));
     }
 
     private int findFirstEmptySlot(Inventory inv, int infoSlot, int backSlot) {
@@ -736,10 +731,21 @@ public class ShopListener implements Listener {
         if (current != null) {
             return current.equals(view.getTopInventory());
         }
-        String plainTitle = ChatColor.stripColor(view.getTitle());
-        return plainTitle.contains("Shop Editor") || plainTitle.contains("Shop Settings") ||
-            plainTitle.contains("Edit Shop Items") || plainTitle.contains("Configure") ||
-            plainTitle.contains("Shop Statistics");
+        String title = view.getTitle();
+        return titleMatches(title, Messages.get("gui.editor.title", Map.of("zone", ""))) ||
+            titleMatches(title, Messages.get("gui.editor.settings-title")) ||
+            titleMatches(title, Messages.get("gui.editor.items-title")) ||
+            titleMatches(title, Messages.get("gui.editor.config-title", Map.of("item", ""))) ||
+            titleMatches(title, Messages.get("gui.editor.stats-title"));
+    }
+
+    private boolean titleMatches(String title, String template) {
+        if (title == null || template == null) {
+            return false;
+        }
+        String plainTitle = ChatColor.stripColor(title);
+        String plainTemplate = ChatColor.stripColor(template);
+        return plainTitle.contains(plainTemplate);
     }
 
     private void applyPendingEdit(Player player, PendingEdit pending, String message) {

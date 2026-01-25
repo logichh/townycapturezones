@@ -113,7 +113,6 @@ public class Messages {
      */
     private static void copyDefaultLanguageFiles() {
         copyDefaultFile("lang/en.json");
-        copyDefaultFile("lang/fr.json");
     }
 
     /**

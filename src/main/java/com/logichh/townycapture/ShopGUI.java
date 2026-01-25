@@ -1,7 +1,6 @@
 package com.logichh.townycapture;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -33,6 +32,7 @@ public class ShopGUI {
     
     // Maps display slots to actual shop items
     private Map<Integer, ShopItemConfig> slotToItemMap = new HashMap<>();
+    private Map<Integer, Integer> slotToQuantityMap = new HashMap<>();
     
     public enum GUIState {
         BROWSING,          // Main shop or paginated view
@@ -77,6 +77,7 @@ public class ShopGUI {
      */
     private void openSinglePage() {
         slotToItemMap.clear();
+        slotToQuantityMap.clear();
         currentState = GUIState.BROWSING;
         currentPage = 0;
         paginated = false;
@@ -106,6 +107,7 @@ public class ShopGUI {
      */
     public void openPage(int page) {
         slotToItemMap.clear();
+        slotToQuantityMap.clear();
         currentState = GUIState.BROWSING;
         this.currentPage = page;
         paginated = true;
@@ -166,6 +168,7 @@ public class ShopGUI {
      */
     public void openQuantitySelector(ShopItemConfig item, boolean buyMode) {
         slotToItemMap.clear();
+        slotToQuantityMap.clear();
         currentState = GUIState.QUANTITY_SELECT;
         this.selectedItem = item;
         this.buyMode = buyMode;
@@ -179,6 +182,7 @@ public class ShopGUI {
         
         for (int i = 0; i < Math.min(QUANTITY_OPTIONS.length, slots.length); i++) {
             int quantity = QUANTITY_OPTIONS[i];
+            slotToQuantityMap.put(slots[i], quantity);
             
             // Check if this quantity is available
             boolean available = true;
@@ -194,18 +198,24 @@ public class ShopGUI {
             ItemStack pane = new ItemStack(paneMaterial);
             ItemMeta meta = pane.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName((buyMode ? ChatColor.GREEN + "Buy " : ChatColor.RED + "Sell ") + quantity);
+                meta.setDisplayName(Messages.get(buyMode ? "gui.shop.quantity.buy" : "gui.shop.quantity.sell", Map.of(
+                    "quantity", String.valueOf(quantity)
+                )));
                 
                 List<String> lore = new ArrayList<>();
                 if (buyMode) {
                     double cost = item.getEffectiveBuyPrice() * quantity;
-                    lore.add(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + String.format("%.2f", cost));
+                    lore.add(Messages.get("gui.shop.quantity.cost", Map.of(
+                        "cost", String.format("%.2f", cost)
+                    )));
                     if (!available) {
-                        lore.add(ChatColor.RED + "Out of stock!");
+                        lore.add(Messages.get("gui.shop.quantity.out-of-stock"));
                     }
                 } else {
                     double earnings = item.getEffectiveSellPrice() * quantity;
-                    lore.add(ChatColor.GRAY + "Earn: " + ChatColor.YELLOW + String.format("%.2f", earnings));
+                    lore.add(Messages.get("gui.shop.quantity.earn", Map.of(
+                        "earnings", String.format("%.2f", earnings)
+                    )));
                 }
                 
                 meta.setLore(lore);
@@ -222,14 +232,22 @@ public class ShopGUI {
             String displayItemName = item.getDisplayName() != null && !item.getDisplayName().isEmpty() 
                 ? item.getDisplayName() 
                 : item.getMaterial().name().replace("_", " ");
-            displayMeta.setDisplayName(ChatColor.YELLOW + displayItemName);
+            displayMeta.setDisplayName(Messages.get("gui.shop.quantity.item-title", Map.of(
+                "item", displayItemName
+            )));
             List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.GRAY + "Select quantity");
+            lore.add(Messages.get("gui.shop.quantity.select"));
             if (buyMode) {
-                lore.add(ChatColor.GRAY + "Price: " + ChatColor.YELLOW + String.format("%.2f", item.getEffectiveBuyPrice()));
-                lore.add(ChatColor.GRAY + "Stock: " + (isUnlimitedStock(item) ? ChatColor.GREEN + "Unlimited" : ChatColor.YELLOW + String.valueOf(item.getStock())));
+                lore.add(Messages.get("gui.shop.quantity.price", Map.of(
+                    "price", String.format("%.2f", item.getEffectiveBuyPrice())
+                )));
+                lore.add(Messages.get("gui.shop.quantity.stock", Map.of(
+                    "stock", getStockText(item)
+                )));
             } else {
-                lore.add(ChatColor.GRAY + "Price: " + ChatColor.YELLOW + String.format("%.2f", item.getEffectiveSellPrice()));
+                lore.add(Messages.get("gui.shop.quantity.price", Map.of(
+                    "price", String.format("%.2f", item.getEffectiveSellPrice())
+                )));
             }
             displayMeta.setLore(lore);
             display.setItemMeta(displayMeta);
@@ -262,27 +280,31 @@ public class ShopGUI {
             List<String> lore = new ArrayList<>();
             
             if (item.isBuyable()) {
-                lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "BUY");
-                lore.add(ChatColor.GRAY + "Price: " + ChatColor.YELLOW + String.format("%.2f", item.getEffectiveBuyPrice()));
+                lore.add(Messages.get("gui.shop.item.buy"));
+                lore.add(Messages.get("gui.shop.item.price", Map.of(
+                    "price", String.format("%.2f", item.getEffectiveBuyPrice())
+                )));
                 
                 if (shop.getStockSystem() != ShopData.StockSystem.INFINITE) {
-                    String stockText = isUnlimitedStock(item) ? ChatColor.GREEN + "Unlimited" : 
-                        (item.isInStock() ? ChatColor.YELLOW + String.valueOf(item.getStock()) : ChatColor.RED + "Out of stock");
-                    lore.add(ChatColor.GRAY + "Stock: " + stockText);
+                    lore.add(Messages.get("gui.shop.item.stock", Map.of(
+                        "stock", getStockText(item)
+                    )));
                 }
                 lore.add("");
-                lore.add(ChatColor.GRAY + "Left-click to buy");
+                lore.add(Messages.get("gui.shop.item.left-click-buy"));
             }
             
             if (item.isSellable()) {
-                lore.add(ChatColor.RED + "" + ChatColor.BOLD + "SELL");
-                lore.add(ChatColor.GRAY + "Price: " + ChatColor.YELLOW + String.format("%.2f", item.getEffectiveSellPrice()));
+                lore.add(Messages.get("gui.shop.item.sell"));
+                lore.add(Messages.get("gui.shop.item.price", Map.of(
+                    "price", String.format("%.2f", item.getEffectiveSellPrice())
+                )));
                 lore.add("");
-                lore.add(ChatColor.GRAY + "Right-click to sell");
+                lore.add(Messages.get("gui.shop.item.right-click-sell"));
             }
             
             if (!item.isBuyable() && !item.isSellable()) {
-                lore.add(ChatColor.GRAY + "" + ChatColor.ITALIC + "Display only");
+                lore.add(Messages.get("gui.shop.item.display-only"));
             }
             
             meta.setLore(lore);
@@ -304,9 +326,22 @@ public class ShopGUI {
     public ShopData getShop() { return shop; }
     public Inventory getCurrentInventory() { return currentInventory; }
     public boolean isPaginated() { return paginated; }
+    public Integer getQuantityForSlot(int slot) { return slotToQuantityMap.get(slot); }
 
     private boolean isUnlimitedStock(ShopItemConfig item) {
         return shop.getStockSystem() == ShopData.StockSystem.INFINITE || item.getMaxStock() < 0;
+    }
+
+    private String getStockText(ShopItemConfig item) {
+        if (isUnlimitedStock(item)) {
+            return Messages.get("gui.shop.stock.unlimited");
+        }
+        if (item.isInStock()) {
+            return Messages.get("gui.shop.stock.count", Map.of(
+                "count", String.valueOf(item.getStock())
+            ));
+        }
+        return Messages.get("gui.shop.stock.out");
     }
 
     private void applyFillers(Inventory inv) {
