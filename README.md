@@ -64,3 +64,5 @@ mvn clean package
 - Discord: https://discord.gg/t96nrf7Nav
 - Patreon: https://www.patreon.com/cw/logich
 - GitHub Sponsors: https://github.com/sponsors/logichh
+
+![Preview](https://bstats.org/signatures/bukkit/Capture%20Points.svg)
