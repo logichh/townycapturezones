@@ -19,20 +19,20 @@ This README is intentionally short. Full documentation lives in the wiki.
 
 ## Full Documentation
 
-Local wiki file:
-- [Wiki Home](wiki.md)
-- [Installation](wiki.md#installation)
-- [Command Reference](wiki.md#command-reference)
-- [Permission Reference](wiki.md#permission-reference)
-- [Global Config Reference](wiki.md#global-configuration-reference-configyml)
-- [Per-Zone Config Reference](wiki.md#per-zone-configuration-reference)
-- [Setup Guides](wiki.md#setup-guides-with-examples)
-- [KOTH Mechanics](wiki.md#koth-mechanics)
-- [Shops](wiki.md#shop-system)
-- [Discord](wiki.md#discord-webhooks)
-- [PlaceholderAPI](wiki.md#placeholderapi)
-- [Repair and Migration](wiki.md#repair-and-migration)
-- [Troubleshooting](wiki.md#troubleshooting)
+Wiki:
+- [Wiki Home](https://github.com/logichh/townycapturezones/wiki)
+- [Installation](https://github.com/logichh/townycapturezones/wiki#installation)
+- [Command Reference](https://github.com/logichh/townycapturezones/wiki#command-reference)
+- [Permission Reference](https://github.com/logichh/townycapturezones/wiki#command-reference)
+- [Global Config Reference](https://github.com/logichh/townycapturezones/wiki#global-configuration-reference-configyml)
+- [Per-Zone Config Reference](https://github.com/logichh/townycapturezones/wiki#global-configuration-reference-configyml)
+- [Setup Guides](https://github.com/logichh/townycapturezones/wiki#global-configuration-reference-configyml)
+- [KOTH Mechanics](https://github.com/logichh/townycapturezones/wiki#global-configuration-reference-configyml)
+- [Shops](https://github.com/logichh/townycapturezones/wiki#global-configuration-reference-configyml)
+- [Discord](https://github.com/logichh/townycapturezones/wiki#discord-webhooks)
+- [PlaceholderAPI](https://github.com/logichh/townycapturezones/wiki#discord-webhooks)
+- [Repair and Migration](https://github.com/logichh/townycapturezones/wiki#discord-webhooks)
+- [Troubleshooting](https://github.com/logichh/townycapturezones/wiki#discord-webhooks)
 
 GitHub wiki:
 - https://github.com/logichh/capturezones/wiki
