@@ -1,3 +1,4 @@
+![Preview](https://i.ibb.co/Dg6mThbQ/minecraft-title-minecraft.png)
 # CaptureZones
 
 CaptureZones adds configurable capture-zone gameplay to Minecraft servers:
