@@ -1,4 +1,114 @@
-# TownyCapture - Change Log
+# CaptureZones - Change Log
+
+## Version 1.1.2 - [2026-02-21]
+
+### Commands & UX
+- Consolidated admin command routing under `/cap admin ...` and updated help output to match.
+- Added `/cap tp [zone_id]` teleport flow for active captures:
+  - Single active zone: direct teleport.
+  - Multiple active zones: choose a target zone.
+- `/cap tp` is now fully gated by `settings.capture-teleport-enabled`:
+  - Hidden from help/tab-complete when disabled.
+  - Returns a disabled message if used while off.
+- Added KOTH admin control and assignment flow:
+  - `/cap admin koth <start|stop|status|assign|unassign|zones>`
+  - Assigned-zone pool is stored in `koth.activation.zones`.
+- `/cap admin koth start` now defaults to assigned KOTH zones only, and skips unassigned zones if explicitly passed.
+- Removed legacy command surface that is no longer part of gameplay/admin flow:
+  - `/cap settype`
+  - `/cap test`
+  - `/cap testall`
+  - `/cap protectchunk`
+
+### Configuration & Migration
+- Added explicit concurrent capture controls:
+  - `settings.capture-concurrency.allow-multiple-zones`
+  - `settings.capture-concurrency.max-active-zones`
+- Added bossbar visibility radius control:
+  - `settings.bossbar-visibility-radius-chunks`
+- Added global reinforcement spawn throttle:
+  - `reinforcements.spawn-rate.global-max-per-tick`
+- Enforced `settings.max-capture-points` at zone creation time so over-limit creations are blocked cleanly.
+- Removed unused global config sections that are now handled per-zone or deprecated:
+  - `anti-exploit`
+  - `point_types`
+  - `point-type-defaults`
+  - `worldguard`
+- Clarified and separated schema-repair modes:
+  - `/cap admin migrate` = non-destructive migration for plugin-owned data/config files (add/fix missing or invalid schema paths).
+  - `/cap admin repair` = same non-destructive behavior as migrate (alias for safe schema repair).
+
+### KOTH
+- Added optional KOTH subsystem with:
+  - Scheduler (`koth.schedule.*`)
+  - Zone selection modes (`koth.activation.selection-mode`)
+  - Reward routing (`koth.rewards.*`)
+- Added command-based KOTH zone assignment that writes back to config (`assign` / `unassign`).
+- KOTH hold radius logic is square-based.
+- Added temporary surface outline rendering during active KOTH (red concrete ring around hold radius) with full block restoration on end/stop.
+- Dynmap/BlueMap info windows now switch to KOTH-specific details while a zone is active, then revert to normal zone view.
+- Added optional KOTH-specific hologram line templates (`koth.hologram.*`).
+
+### Zone Gameplay & Reinforcements
+- Added per-zone keep-inventory setting for active captures:
+  - `capture.capture.keep-inventory-on-death`
+  - Keeps inventory/XP and suppresses drops when enabled for that zone.
+- Death cancellation messaging now supports localized non-player killer labels in `lang/en.json`:
+  - Reinforcements
+  - Environment
+  - Unknown
+- Added reinforcement spawn Y controls for better indoor/multi-level behavior:
+  - `reinforcements.spawn-location.y-mode` (`SURFACE`, `ZONE_CENTER`, `ORIGIN_PLAYER`, `CLAMPED`)
+  - `reinforcements.spawn-location.clamp-range`
+
+### Fixes
+- Fixed missing item-reward editor open message path by supporting both key styles:
+  - `messages.zoneconfig-itemrewards-opened`
+  - `messages.zoneconfig-itemrewards.opened`
+
+### Performance & Stability
+- Major backend optimization for servers with many active zones.
+- Smarter zone lookup/player scanning to reduce unnecessary checks.
+- Boundary particles and holograms now pause/short-circuit when nobody is close enough to see them.
+- Reload/shutdown cleanup was hardened to prevent stale tasks, bossbars, markers, and holograms.
+- Upgrade migration is safer: missing config keys are auto-added without overwriting existing server values.
+
+### Zones & Capturing
+- Added full cuboid zone support.
+- Added a cuboid selector tool workflow for admins to pick corners more easily during zone creation.
+- Added optional auto-capture when entering a zone (with anti-spam debounce).
+- Capture ownership now supports players, towns, or nations.
+- Added contested capture state when competing owner groups are inside the same zone.
+- Added optional grace timer before capture is cancelled/reset after attackers leave.
+- Added per-zone capture cooldowns and anti-instant-recapture options.
+- Added optional same-town/same-nation recapture prevention rules.
+- Force-capture now applies the same cooldown/lock behavior as normal successful captures.
+- Beacon beam now reflects phase color (yellow in preparation, red in active capture).
+
+### Rewards, Progress & Combat Flow
+- Expanded reinforcement behavior options (wave scaling, per-wave caps, spawn tuning, targeting modes).
+- Added configurable capture speed modifiers.
+- Added modern item rewards (including custom items) with inventory-full handling options.
+- Added permission-based economy reward modifiers.
+- Added permission grant rewards (temporary or permanent).
+- Expanded bossbar/actionbar controls for normal, contested, and grace states.
+
+### Admin & Configuration
+- Per-zone override behavior is now clearer and more reliable.
+- Zone config tab completion now suggests a much broader set of settable paths.
+- Added in-game item reward editor GUI (`/capturezones zoneconfig <zone> itemrewards`).
+- New zone config files are cleaner: template banner text is no longer copied into every zone file.
+- Legacy data folder migration is automatic (`plugins/TownyCapture` -> `plugins/CaptureZones`).
+
+### Integrations
+- Towny integration is now optional (standalone usage is supported).
+- PlaceholderAPI coverage is much more complete for zone/global/player state.
+
+### Fixes
+- Fixed capture/preparation leave behavior that could continue in some cases.
+- Improved moved-too-far cancel messaging to support player-name output.
+- Fixed zone-template migration edge cases on existing servers.
+- Dynmap and BlueMap marker/icon behavior is fixed.
 
 ## Version 1.1.1 - [2026-01-25]
 
@@ -255,7 +365,7 @@ Added messages to `lang/en.json`:
 
 ### Fixed
 - **Critical**: Fixed post-deletion capture completion spam. Deleting a zone during an active capture session no longer triggers "no town was found" warnings or completion callbacks.
-- Added defensive guards in `completeCapture()` to prevent execution if the capture point has been removed from the registry.
+- Added defensive guards in `completeCapture()` to prevent execution if the capture zone has been removed from the registry.
 - Zone deletion and capture stopping now properly cancel all scheduled tasks (preparation/capture timers) and remove boss bars to ensure clean state.
 
 ### Added

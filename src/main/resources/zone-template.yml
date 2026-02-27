@@ -1,5 +1,5 @@
 # ==============================================
-# TownyCapture Zone Defaults
+# CaptureZones Zone Defaults
 # This file is used as a template for new zones.
 # It is copied into zones/<id>_config.yml when a zone is created.
 # If you are editing a zone config, changes apply only to that zone.
@@ -23,6 +23,9 @@ capture:
     duration: 15
     # Show countdown during capture
     show-countdown: true
+    # Keep player inventory/XP on death while this zone has an active capture session.
+    # No item drops, no XP drops, and no item durability/state changes.
+    keep-inventory-on-death: false
     # Allow PVP during capture
     allow-pvp: true
     # Allow block breaking during capture
@@ -56,8 +59,49 @@ rewards:
     max: 100
   # Interval in seconds for hourly rewards (3600 = 1 hour)
   hourly-interval: 3600
-  # Optional item payout per reward tick (format "MATERIAL:AMOUNT" or "None" to disable)
+  # Legacy single item payout format (kept for backward compatibility)
+  # Format: "MATERIAL:AMOUNT" or "None" to disable.
   item-payout: "None"
+  item-rewards:
+    # Enable modern item reward definitions.
+    enabled: false
+    # Behavior when recipient inventory cannot fit all items:
+    # DROP = drop leftovers at recipient location, CANCEL = cancel item reward tick.
+    inventory-full-behavior: "DROP"
+    # Item definitions. Supported formats:
+    # - "MATERIAL:AMOUNT"
+    # - { material: "DIAMOND", amount: 2 }
+    # - Full serialized ItemStack map (written by /capturezones zoneconfig <zone> itemrewards GUI)
+    items:
+      - "DIAMOND:1"
+  permission-modifiers:
+    # Enable permission-based reward tier modifiers.
+    # Applies to economy reward amount before payout.
+    enabled: false
+    # Conflict policy when multiple permission tiers match:
+    # HIGHEST = highest resulting reward wins
+    # ADDITIVE = stack multipliers/flat bonuses
+    # FIRST_MATCH = first matching tier in list order
+    conflict-policy: "HIGHEST"
+    # Tier definitions. Supported formats:
+    # - "permission.node[:multiplier[:flatBonus]]"
+    # - { permission: "capturezones.reward.vip", multiplier: 1.25, flat-bonus: 50.0 }
+    tiers:
+      - { permission: "capturezones.reward.vip", multiplier: 1.25, flat-bonus: 0.0 }
+      - { permission: "capturezones.reward.elite", multiplier: 1.5, flat-bonus: 100.0 }
+  permission-rewards:
+    # Enable permission node rewards granted to an online owner member.
+    # These rewards are plugin-managed and can be temporary or permanent.
+    enabled: false
+    # Permission grants. Supported formats:
+    # - "permission.node" (permanent)
+    # - "permission.node:7d" (temporary; units: ms, s, m, h, d, w)
+    # - { permission: "permission.node", permanent: true }
+    # - { permission: "permission.node", duration: "12h" }
+    # - { permission: "permission.node", duration-ms: 600000 }
+    grants:
+      - { permission: "capturezones.rewardkit.weekly", duration: "7d" }
+      - { permission: "capturezones.rewardkit.permanent", permanent: true }
 
 # Reinforcement configuration
 reinforcements:
@@ -68,10 +112,41 @@ reinforcements:
     max-per-tick: 3
   # How many mobs to spawn per wave
   mobs-per-wave: 1
+  # Additional mobs added each phase (phase-scaled wave growth)
+  wave-phase-increase: 1
+  # Hard cap for mobs spawned in a single wave after phase scaling
+  max-mobs-per-wave: 12
   # Seconds between waves
   wave-interval: 30
+  # Stop spawning new waves when remaining capture time is at or below this value
+  stop-spawning-under-seconds: 60
   # Max number of reinforcement mobs alive for this zone
   max-mobs-per-point: 50
+  spawn-location:
+    # How reinforcement spawn Y is chosen:
+    # SURFACE = use highest terrain block at spawn X/Z (classic behavior; can place mobs on roofs)
+    # ZONE_CENTER = use this zone center Y (best for indoor/closed arenas so mobs stay on arena level)
+    # ORIGIN_PLAYER = use capturing player's current Y (follows the fight level in multi-floor areas)
+    # CLAMPED = use SURFACE but clamp it to zone-center +/- clamp-range (hybrid between terrain and arena level)
+    y-mode: "SURFACE"
+    # Only used when y-mode = CLAMPED.
+    # Example: zone center Y=70 and clamp-range=8 => final base Y is limited to 62..78.
+    clamp-range: 8.0
+    # Minimum horizontal distance from spawn origin (capturing initiator or zone center fallback)
+    min-distance: 3.0
+    # Maximum horizontal distance from spawn origin
+    max-distance: 11.0
+    # Vertical offset applied AFTER y-mode chooses the base Y.
+    # Positive values push spawns up; negative values push spawns down.
+    # Works with all y-modes (not only SURFACE).
+    surface-offset: 1.0
+  targeting:
+    # CAPTURING_OWNER_ONLY, OPPOSING_OWNER_ONLY, ANY_PLAYER_IN_ZONE
+    mode: "CAPTURING_OWNER_ONLY"
+    # Extra chunk radius for zone membership checks used by targeting
+    search-extra-chunks: 4
+    # Target refresh interval in ticks
+    retarget-interval-ticks: 20
 
   # MythicMobs integration (optional)
   mythicmobs:
@@ -195,11 +270,82 @@ capture-conditions:
   # Prevent capturing your own town's zone
   prevent-self-capture: true
 
+  auto-capture:
+    # Start capture automatically when a player enters the zone
+    enabled: false
+    # Minimum seconds between automatic start attempts per player per zone
+    entry-debounce-seconds: 10
+
+  recapture-policy:
+    # Optional Towny-aware policy checks for zones controlled by related owner groups
+    # (ignored automatically when Towny integration is unavailable/disabled)
+    prevent-same-town: false
+    prevent-same-nation: false
+
+  speed-modifiers:
+    # Master toggle for configurable capture speed scaling
+    enabled: false
+    # Base speed multiplier applied to normal capture countdown
+    flat-multiplier: 1.0
+    # Clamp bounds applied after all speed scaling is calculated
+    min-multiplier: 0.1
+    max-multiplier: 5.0
+    owner-player-scaling:
+      # Scale speed by capturing-owner player count in the zone
+      enabled: false
+      # Additional multiplier added for each extra player beyond the first
+      per-extra-player: 0.25
+      # Maximum number of extra players that can contribute to scaling
+      max-extra-players: 4
+
+  progress-display:
+    actionbar:
+      contested:
+        # Enable contested actionbar updates for players inside the zone
+        enabled: true
+        # Minimum interval between contested actionbar updates (milliseconds)
+        interval-ms: 2000
+      grace:
+        # Enable grace actionbar updates for capturing owner players
+        enabled: true
+        # Minimum interval between grace actionbar updates (milliseconds)
+        interval-ms: 1000
+
+  contested:
+    # Enable contested state when the capturing owner and a competing owner are inside the zone
+    enabled: false
+    # Progress behavior while contested: PAUSE, DECAY, or ROLLBACK
+    progress-policy: "PAUSE"
+    # Used when progress-policy = DECAY (seconds added back to capture timer per second contested)
+    decay-seconds: 1
+    # Used when progress-policy = ROLLBACK (stronger reverse progress per second contested)
+    rollback-seconds: 3
+
+  leave-grace:
+    # Enable a grace window before capture is cancelled when no capturing-owner players remain in zone
+    enabled: false
+    # Grace duration in seconds before cancellation
+    duration-seconds: 15
+
   capture-cooldown:
-    # Cooldown after a capture ends (false = no cooldown)
+    # Master toggle for capture cooldown enforcement
     enabled: true
-    # Cooldown duration in milliseconds
+    # Cooldown duration in milliseconds (300000 = 5 minutes)
     duration-ms: 300000
+    # Apply cooldown after specific outcomes
+    on-success: true
+    on-cancel: false
+    on-fail: false
+
+    anti-instant-recapture:
+      # Additional owner lock rules to prevent immediate back-and-forth recaptures
+      enabled: false
+      # Lock duration in milliseconds
+      duration-ms: 300000
+      # Block the previous controlling owner from instantly recapturing after they lose a zone
+      lock-previous-owner: true
+      # Block the latest attacker/capturing owner from instantly recapturing
+      lock-previous-attacker: false
 
 # Info window settings for map plugins
 infowindow:
@@ -232,6 +378,12 @@ colors:
 
 # Bossbar configuration
 bossbar:
+  # Master toggle for capture bossbar updates
+  enabled: true
+  # Show contested bossbar state/title while contested
+  contested-enabled: true
+  # Show grace bossbar state/title while grace timer is active
+  grace-enabled: true
   # Bossbar title during capture (placeholders: %town% %point% %player% %time_left%)
   title: "&e%town% is capturing %point% (Started by %player%) - %time_left%"
   color:
@@ -242,14 +394,44 @@ bossbar:
   # Death message title when a player dies in the zone
   death_title: "&c%victim% has been defeated by %killer% at %point%!"
 
+# Hologram display (per-zone)
+hologram:
+  # Enable hologram rendering for this zone
+  enabled: false
+  # Suspend hologram rendering/updates when no players are near this zone
+  pause-when-no-players-nearby: true
+  # Viewer distance in blocks required for this zone hologram to stay active
+  visibility-range: 64.0
+  # Number of hologram stacks around zone center (1 = center only, 4 = all sides)
+  instances: 1
+  # Horizontal distance in blocks from center for multi-instance layout
+  horizontal-offset: 1.25
+  # true = world-fixed orientation, false = face viewer
+  fixed-orientation: false
+  # Vertical offset above zone center
+  height-offset: -5.0
+  # Spacing between each line
+  line-spacing: 0.25
+  # Max lines rendered for this zone hologram
+  max-lines: 8
+  # Configurable hologram lines with placeholders:
+  # {zone} {zone_id} {status} {owner} {owner_type}
+  # {capturing_owner} {capturing_owner_type}
+  # {reward} {item_reward} {time_left} {progress}
+  # {label_status} {label_owner} {label_reward} {label_time}
+  lines:
+    - "&6&l{zone}"
+    - "&7{label_status}: &e{status}"
+    - "&7{label_owner}: &b{owner}"
+    - "&7{label_reward}: &a${reward}"
+    - "&7{label_time}: &f{time_left}"
+
 # Dynmap integration (per-zone)
 dynmap:
   # Enable Dynmap markers for this zone
   enabled: true
   # Dynmap marker icon id
   icon: "skull"
-  # Icon size multiplier
-  icon-size: 1.0
   # Toggle marker point, label, and area polygon
   show-marker: true
   show-label: true

@@ -3,12 +3,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.logichh</groupId>
-    <artifactId>townycapture</artifactId>
-    <version>1.1.1</version>
+    <artifactId>capturezones</artifactId>
+    <version>1.1.2</version>
     <packaging>jar</packaging>
 
-    <name>TownyCapture</name>
-    <description>A plugin that adds capturable points for towns in Towny</description>
+    <name>CaptureZones</name>
+    <description>A plugin that adds capturable zones with optional map integrations</description>
 
     <properties>
         <java.version>17</java.version>
@@ -175,7 +175,7 @@
                             <relocations>
                                 <relocation>
                                     <pattern>org.bstats</pattern>
-                                    <shadedPattern>com.logichh.townycapture.bstats</shadedPattern>
+                                    <shadedPattern>com.logichh.capturezones.bstats</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
@@ -185,3 +185,4 @@
         </plugins>
     </build>
 </project>
+

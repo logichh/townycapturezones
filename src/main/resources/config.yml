@@ -1,9 +1,9 @@
 # ==============================================
-# TownyCapture Configuration
+# CaptureZones Configuration
 # Author: Logichh (Milin)
 # Discord: @milin001
 # Discord support server: https://discord.gg/t96nrf7Nav
-# Version: 1.1.1
+# Version: 1.1.2
 # ==============================================
 # 
 # This configuration file contains GLOBAL plugin settings.
@@ -26,6 +26,15 @@ settings:
 
   # Automatically show capture zone boundaries to players
   auto-show-boundaries: true
+
+  # Allow players to teleport to currently active captures using /cap tp
+  capture-teleport-enabled: false
+
+  # Bossbar visibility radius for zone-related bossbars.
+  # false = global visibility (all players can see bossbars, subject to other checks)
+  # 0 = only players inside the zone
+  # 1 = zone + 1 chunk around it, 2 = zone + 2 chunks, etc.
+  bossbar-visibility-radius-chunks: false
   
   # Check for plugin updates from Modrinth
   check-for-updates: true
@@ -42,11 +51,15 @@ settings:
   # Auto-save interval in seconds
   auto-save-interval: 300
   
-  # Maximum number of capture points allowed
+  # Maximum number of capture zones allowed
   max-capture-points: 50
   
-  # Maximum number of active captures allowed
-  max-active-captures: 10
+  # Concurrent capture rules
+  # allow-multiple-zones: false = only one active capture at a time
+  # allow-multiple-zones: true = multiple zones can be captured at once (up to max-active-zones)
+  capture-concurrency:
+    allow-multiple-zones: true
+    max-active-zones: 10
   
   # Active language for messages (default: "en")
   # Supports both short codes ("en", "fr") and full locales ("en_US", "fr_FR")
@@ -55,13 +68,144 @@ settings:
   # copy the contents of en.json, translate the values, and set language to match the filename (without .json)
   language: "en"
 
+# Global reinforcement performance limits
+reinforcements:
+  spawn-rate:
+    # Hard cap on how many reinforcement mobs can be spawned server-wide per tick
+    global-max-per-tick: 8
+
+# ══════════════════════════════════════════════
+# KOTH (KING OF THE HILL) MODE
+# Optional scheduled hold-the-hill gameplay layer
+# ══════════════════════════════════════════════
+koth:
+  # Master toggle for the KOTH subsystem
+  enabled: false
+
+  # Automated schedule for KOTH events
+  schedule:
+    enabled: true
+    # Check schedule matcher every N seconds
+    check-interval-seconds: 30
+    # Allowed days: MONDAY..SUNDAY, ALL, *
+    days: [ALL]
+    # One or more 24h times (HH:mm)
+    # Server time is used for scheduling.
+    times:
+      - "20:00"
+    # If false, a new scheduled event won't start while one is already active
+    allow-overlap: false
+
+  # Which zones activate each KOTH run
+  activation:
+    # ALL = every zone
+    # LIST = only zones listed below
+    # RANDOM = pick random zones from listed zones (or all zones if list empty)
+    selection-mode: "ALL"
+    # Zone IDs (not display names).
+    # These are your real zone IDs, for example from /cap list.
+    #
+    # Example:
+    # zones:
+    #   - zone1
+    #   - zone2
+    #   - zone3
+    zones: []
+    # 0 or below = no cap (all selected); >0 = max zones to activate
+    max-zones: 1
+
+  # Core KOTH rules
+  gameplay:
+    # Time a single holder must stay within hold radius to win (seconds)
+    capture-seconds: 180
+    # Horizontal radius around zone center/beacon where holder must stand
+    hold-radius-blocks: 5.0
+    # If true, progress is reset when nobody is in range
+    reset-progress-when-empty: false
+    # PAUSE = keep progress while contested, RESET = wipe progress on contest
+    contested-behavior: "PAUSE"
+
+  # KOTH winner rewards
+  rewards:
+    money:
+      enabled: true
+      # -1 = use zone base reward, >0 = fixed amount
+      amount: -1.0
+    items:
+      enabled: true
+      use-zone-item-rewards: true
+      # DROP = overflow drops on ground, CANCEL = skip item reward if no space
+      inventory-full-behavior: "DROP"
+    permissions:
+      enabled: true
+      use-zone-permission-rewards: true
+
+  hologram:
+    # When true, use KOTH-specific hologram lines from this section
+    use-koth-style: false
+    active-lines:
+      - "&c&lKOTH: {zone}"
+      - "&7Status: &a{koth_status}"
+      - "&7Holder: &f{koth_holder}"
+      - "&7Progress: &e{koth_progress}%"
+      - "&7Time Left: &f{koth_time_left}"
+    inactive-lines:
+      - "&8&lKOTH: {zone}"
+      - "&7Status: &c{koth_status}"
+      - "&7Waiting for next event"
+
+# Towny integration mode and owner behavior
+# The "mode" setting determines how the plugin integrates with Towny for capture ownership and related features:
+# - auto: The plugin will automatically use Towny features if Towny is present and enabled. If Towny is not available, it will fall back to standalone mode with player-only ownership.
+# - required: The plugin will require Towny to be present and enabled. If Towny is missing, the plugin will fail to start and log an error. This mode is ideal if you want to ensure full Towny integration and do not want the plugin to operate without it.
+# - disabled: The plugin will ignore Towny entirely and operate in standalone mode with player-only
+towny:
+  # auto: use Towny if present; required: fail startup if Towny missing; disabled: force standalone mode
+  mode: auto
+  # Feature toggles when Towny integration is active
+  allow-town-capture: true
+  allow-nation-capture: true
+
+# Capture ownership model
+# This section defines how capture ownership works across the plugin.
+# The "platform" setting determines which ownership system is used for captures:
+# - auto: Use Towny when available and enabled, otherwise fall back to standalone player-only
+# - towny: Force the use of Towny for ownership, which allows players, towns, and nations to own captures. Requires Towny to be installed and enabled.
+# - standalone: Use a simple player-only ownership system that does not require Towny. Only individual players can own captures, and there are no town or nation affiliations.
+# - scoreboard: Use a scoreboard team-based ownership system that can represent players, towns, and nations as teams. This allows for more flexible ownership without requiring Towny, but may have limitations in representing complex town/nation relationships.
+# The "allowed" list specifies which owner types are valid for captures. This can include "player", "town", and "nation". Depending on the platform chosen, some owner types may not be available (e.g., standalone mode only supports "player").
+# The "default-owner-type" setting determines which owner type is used by default during the capture flow when a new capture is initiated. This should be set to one of the types included in the "allowed" list and supported by the chosen platform.
+# Note: Changing the ownership platform or allowed types may have significant implications for how captures are managed and displayed, especially if you switch from a Towny-based system to standalone or scoreboard. Always test changes to ownership settings in a safe environment before applying them to a live server, and be aware that existing captures may not be compatible with new ownership configurations without manual adjustments.
+# If you dont use Towny use standalone. If you use Towny and want to allow town/nation captures use towny. If you want to allow non-Towny servers to have town/nation-like ownership use scoreboard, but be aware of its limitations. Auto is a good choice if you want the plugin to automatically adapt to your server's setup without manual configuration.
+capture-owners:
+  # Owner platform backend
+  # auto = Towny when available+enabled, otherwise standalone
+  # towny = force Towny adapter
+  # standalone = player-only adapter
+  # scoreboard = scoreboard-team adapter (player + town/team)
+  platform: auto
+  # Allowed owner types for captures
+  allowed: [player, town, nation]
+  # Default owner type used by capture flow
+  default-owner-type: town
+
 # Global boundary visualization settings
+# These settings control how zone boundaries are visualized to players.
+# The "mode" setting determines the overall visualization style:
+# - ON: Full boundary visuals with particles at the configured density and range.
+# - REDUCED: Lower density and shorter range for better performance on larger zones.
+# - OFF: No boundary visuals are generated at all.
+# This setting can cause lag if you have very large zones or many players near boundaries, so choose the mode that best fits your server's performance needs.
+# Be careful with this setting, if your goal is to have minimal performance impact, set mode to OFF.
 boundary-visuals:
   mode: "OFF" # ON, REDUCED, OFF
   on:
     interval-ticks: 10
     min-sides: 256
     sides-multiplier: 4.0
+    # Skip all boundary particle generation when a player is farther than this
+    # horizontal distance from a zone boundary edge.
+    visibility-range-chunks: 8
     vertical-range:
       min: -10
       max: 40
@@ -69,11 +213,14 @@ boundary-visuals:
     interval-ticks: 30
     min-sides: 96
     sides-multiplier: 2.0
+    visibility-range-chunks: 6
     vertical-range:
       min: -2
       max: 20
 
 # Global sound settings
+# These sounds are used for various capture events. You can customize the sound, volume, and pitch for each event type.
+# Make sure to use valid Minecraft sound names. You can find sound names in the Minecraft wiki or by using a plugin that lists available sounds.
 sounds:
   enabled: true
   capture-started:
@@ -101,7 +248,7 @@ sounds:
     volume: 1.0
     pitch: 1.0
 
-# Global statistics settings
+# Global statistics settings 
 statistics:
   enabled: true
   auto-save-interval: 300
@@ -139,9 +286,9 @@ discord:
   # Embed styling (optional)
   embed:
     # Placeholders: {server}, {plugin}, {version}
-    author-name: "TownyCapture"
+    author-name: "CaptureZones"
     author-icon: ""
-    footer-text: "TownyCapture"
+    footer-text: "CaptureZones"
     footer-icon: ""
     thumbnail-url: ""
     show-timestamp: true
@@ -170,12 +317,6 @@ discord:
     # Optional statistics events
     new-records: false             # When server records are broken
     milestones: false              # Capture count milestones (10, 50, 100, etc.)
-
-# Global anti-exploit settings
-anti-exploit:
-  min-point-distance: 10
-  min-town-capture-cooldown: 24
-  allow-capture-during-events: false
 
 # ══════════════════════════════════════════════
 # ZONE SHOP SYSTEM
@@ -241,8 +382,8 @@ shops:
 
 dynmap:
   enabled: true
-  marker-set: townycapture.markerset
-  marker-set-label: Capture Points
+  marker-set: capturezones.markerset
+  marker-set-label: Capture Zones
   center-marker:
     show: true
     icon: "skull"
@@ -256,21 +397,45 @@ dynmap:
 
 bluemap:
   enabled: false
-  marker-set: townycapture
-  marker-set-label: Capture Points
+  marker-set: capturezones
+  marker-set-label: Capture Zones
   center-marker:
     enabled: true
     icon: "skull"
     icon-size: 16
 
 # ══════════════════════════════════════════════
-# WORLDGUARD INTEGRATION
+# HOLOGRAM SETTINGS
+# Built-in provider uses TextDisplay entities (no external plugin required)
 # ══════════════════════════════════════════════
 
-worldguard:
-  prevent_damage: true
-  prevent_explosions: true
-  allow_item_use: true
+holograms:
+  enabled: false
+  # Provider modes: TEXT_DISPLAY, NONE
+  provider: "TEXT_DISPLAY"
+  # Refresh interval for hologram content updates
+  update-interval-ticks: 40
+  # Suspend hologram rendering/updates when no players are near a zone hologram
+  pause-when-no-players-nearby: true
+  # Viewer distance in blocks for hologram activation (used by proximity suspension)
+  visibility-range: 64.0
+  # Fallback defaults when a zone does not override hologram settings
+  default-height-offset: -5.0
+  default-line-spacing: 0.25
+  default-max-lines: 8
+  # Number of hologram stacks around zone center (1 = center only, 4 = all sides)
+  default-instances: 1
+  # Horizontal distance in blocks from center when using multiple instances
+  default-horizontal-offset: 1.25
+  # true = world-fixed orientation, false = face viewer
+  default-fixed-orientation: false
+  # Fallback lines used when zone hologram.lines is empty
+  default-lines:
+    - "&6&l{zone}"
+    - "&7{label_status}: &e{status}"
+    - "&7{label_owner}: &b{owner}"
+    - "&7{label_reward}: &a${reward}"
+    - "&7{label_time}: &f{time_left}"
 
 # ══════════════════════════════════════════════
 # GLOBAL LIMITS AND DEFAULTS
@@ -281,17 +446,8 @@ capture-point:
   max-radius: 10
   min-reward: 100.0
   max-reward: 10000.0
-  min-cooldown: 3600000
-  max-cooldown: 86400000
   min-players: 1
   max-players: 10
-
-# Global point type labels (This has no real purpose yet other than display)
-point_types:
-  default: Strategic Point
-  movecraft: Movecraft
-  resource: Resource Node
-  military: Military Base
 
 # ══════════════════════════════════════════════
 # BLOCKED COMMANDS
@@ -309,3 +465,4 @@ blocked-commands: []
 
 # ══════════════════════════════════════════════
 # END OF CONFIGURATION FILE
+

@@ -1,124 +1,126 @@
-name: TownyCapture
-version: '1.1.1'
-main: com.logichh.townycapture.TownyCapture
+name: CaptureZones
+version: '1.1.2'
+main: com.logichh.capturezones.CaptureZones
 api-version: '1.20'
-depend: [Towny]
-softdepend: [Dynmap, WorldGuard, PlaceholderAPI, Dynmap-Towny, MythicMobs, BlueMap]
+softdepend: [Towny, Dynmap, WorldGuard, PlaceholderAPI, Dynmap-Towny, MythicMobs, BlueMap]
 authors: [LogicHH]
-description: A plugin that adds capturable points for towns in Towny
+description: A plugin that adds capturable zones with optional map integrations
 
 commands:
-  capturepoint:
-    description: Main command for CapturePoints
-    usage: /capturepoint [subcommand]
-    aliases: [cap]
+  capturezones:
+    description: Main command for CaptureZones
+    usage: /capturezones [subcommand]
+    aliases: [capturepoint, cap]
 
 permissions:
-  capturepoints.use:
-    description: Allows using basic CapturePoints commands (list, info, capture)
+  capturezones.use:
+    description: Allows using basic CaptureZones commands (list, info, capture)
     default: true
 
-  capturepoints.admin:
-    description: Allows using all admin CapturePoints commands
+  capturezones.admin:
+    description: Allows using all admin CaptureZones commands
     default: op
     children:
-      capturepoints.use: true
-      capturepoints.admin.create: true
-      capturepoints.admin.delete: true
-      capturepoints.admin.reload: true
-      capturepoints.admin.stop: true
-      capturepoints.admin.forcecapture: true
-      capturepoints.admin.reset: true
-      capturepoints.admin.settype: true
-      capturepoints.admin.setitempayout: true
-      capturepoints.admin.timewindow: true
-      capturepoints.admin.togglechat: true
-      capturepoints.admin.stats: true
-      capturepoints.admin.stats.nocooldown: true
-      capturepoints.admin.zoneconfig: true
-      capturepoints.admin.zoneconfig.set: true
-      capturepoints.admin.zoneconfig.reset: true
-      capturepoints.admin.zoneconfig.reload: true
-      capturepoints.admin.shop: true
-      capturepoints.admin.shop.restock: true
-      capturepoints.admin.update-notify: true
+      capturezones.use: true
+      capturezones.admin.create: true
+      capturezones.admin.delete: true
+      capturezones.admin.reload: true
+      capturezones.admin.migrate: true
+      capturezones.admin.stop: true
+      capturezones.admin.forcecapture: true
+      capturezones.admin.reset: true
+      capturezones.admin.setitempayout: true
+      capturezones.admin.timewindow: true
+      capturezones.admin.togglechat: true
+      capturezones.admin.stats: true
+      capturezones.admin.stats.nocooldown: true
+      capturezones.admin.zoneconfig: true
+      capturezones.admin.zoneconfig.set: true
+      capturezones.admin.zoneconfig.reset: true
+      capturezones.admin.zoneconfig.reload: true
+      capturezones.admin.shop: true
+      capturezones.admin.shop.restock: true
+      capturezones.admin.koth: true
+      capturezones.admin.update-notify: true
 
-  capturepoints.admin.create:
-    description: Allows creating capture points
+  capturezones.admin.create:
+    description: Allows creating capture zones
     default: op
 
-  capturepoints.admin.delete:
-    description: Allows deleting capture points
+  capturezones.admin.delete:
+    description: Allows deleting capture zones
     default: op
 
-  capturepoints.admin.reload:
+  capturezones.admin.reload:
     description: Allows reloading the plugin configuration
     default: op
 
-  capturepoints.protectchunk:
-    description: Allows protecting individual chunks
+  capturezones.admin.migrate:
+    description: Allows running schema repair to add missing config/data keys
     default: op
 
-  capturepoints.admin.stop:
+  capturezones.admin.stop:
     description: Allows stopping active captures
     default: op
 
-  capturepoints.admin.forcecapture:
+  capturezones.admin.forcecapture:
     description: Allows forcing a town to capture a point
     default: op
 
-  capturepoints.admin.reset:
+  capturezones.admin.reset:
     description: Allows resetting a point to unclaimed state
     default: op
 
-  capturepoints.admin.settype:
-    description: Allows setting a point's type
-    default: op
-
-  capturepoints.admin.setitempayout:
+  capturezones.admin.setitempayout:
     description: Allows setting a point's item payout
     default: op
 
-  capturepoints.admin.timewindow:
-    description: Allows managing time windows for capture points
+  capturezones.admin.timewindow:
+    description: Allows managing time windows for capture zones
     default: op
 
-  capturepoints.admin.togglechat:
+  capturezones.admin.togglechat:
     description: Allows toggling capture chat messages
     default: op
 
-  capturepoints.admin.stats:
+  capturezones.admin.stats:
     description: Allows managing statistics (remove, reset)
     default: op
 
-  capturepoints.admin.stats.nocooldown:
+  capturezones.admin.stats.nocooldown:
     description: Bypasses the cooldown for /cap stats command
     default: op
 
-  capturepoints.admin.zoneconfig:
+  capturezones.admin.zoneconfig:
     description: Allows managing zone-specific configs
     default: op
 
-  capturepoints.admin.zoneconfig.set:
+  capturezones.admin.zoneconfig.set:
     description: Allows setting zone-specific config values
     default: op
 
-  capturepoints.admin.zoneconfig.reset:
+  capturezones.admin.zoneconfig.reset:
     description: Allows resetting zone configs to defaults
     default: op
 
-  capturepoints.admin.zoneconfig.reload:
+  capturezones.admin.zoneconfig.reload:
     description: Allows reloading zone configs
     default: op
 
-  capturepoints.shop.use:
+  capturezones.shop.use:
     description: Allows using zone shops
     default: true
 
-  capturepoints.admin.shop:
+  capturezones.admin.shop:
     description: Allows managing zone shops (edit, enable/disable, reload)
     default: op
 
-  capturepoints.admin.shop.restock:
+  capturezones.admin.shop.restock:
     description: Allows manually restocking zone shops
     default: op
+
+  capturezones.admin.koth:
+    description: Allows controlling KOTH events
+    default: op
+
+
