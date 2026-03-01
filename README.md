@@ -11,6 +11,16 @@ CaptureZones adds configurable capture-zone gameplay to Minecraft servers:
 
 This README is intentionally short. Full documentation lives in the wiki.
 
+
+## Premium Sponsor addons
+If you like CaptureZones and want it to get better, please consider becoming a sponsor on GitHub or Patreon!
+All sponsors recieve access to all premium addons.
+List of premium addons:
+- [CZPanels](https://www.patreon.com/posts/czpanels-premium-151916241?utm_medium=clipboard_copy&utm_source=copyLink&utm_campaign=postshare_creator&utm_content=join_link) - companion plugin for CaptureZones that self-hosts a built-in web admin panel with full control over the plugin and statistics.
+Becoming a sponsor:
+[- Patreon](https://www.patreon.com/cw/logich)
+[- Github](https://github.com/sponsors/logichh)
+
 ## Quick Start
 
 1. Put the plugin jar in `plugins/`.
