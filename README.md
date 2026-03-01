@@ -52,7 +52,7 @@ Optional integrations:
 - MythicMobs
 - WorldGuard
 
-## Addon API (For External Web Panel Plugins)
+## Addon API
 
 CaptureZones now registers a Bukkit service for addon plugins:
 
