@@ -171,7 +171,9 @@ public class CapturePointInfoWindow {
         if (adapter == null) {
             return null;
         }
-        return adapter.resolveMapColorHex(ownerName, ownerType, null);
+        return owner != null
+            ? adapter.resolveMapColorHex(owner, null)
+            : adapter.resolveMapColorHex(ownerName, ownerType, null);
     }
 
     private static String applyPlaceholders(String template, Map<String, String> values) {

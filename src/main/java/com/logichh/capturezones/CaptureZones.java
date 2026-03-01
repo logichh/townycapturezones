@@ -1,5 +1,6 @@
 package com.logichh.capturezones;
 
+import com.logichh.capturezones.api.CaptureZonesApi;
 import com.logichh.capturezones.AreaStyle;
 import com.logichh.capturezones.CaptureCommandTabCompleter;
 import com.logichh.capturezones.CaptureCommands;
@@ -49,6 +50,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -56,6 +58,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.scheduler.BukkitTask;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.MultiLineChart;
@@ -162,6 +165,7 @@ extends JavaPlugin {
     // Shop system
     private ShopManager shopManager;
     private ShopListener shopListener;
+    private ShopEconomyAdapter shopEconomyAdapter;
     private CuboidSelectionManager cuboidSelectionManager;
     private ZoneItemRewardEditor zoneItemRewardEditor;
     
@@ -173,11 +177,13 @@ extends JavaPlugin {
     
     // Data migration manager
     private DataMigrationManager dataMigrationManager;
+    private int lastLegacyTownOwnerRebindCount;
     private boolean townyAvailable;
     private TownyMode townyMode = TownyMode.AUTO;
     private EnumSet<CaptureOwnerType> allowedOwnerTypes = EnumSet.of(CaptureOwnerType.TOWN);
     private CaptureOwnerType defaultOwnerType = CaptureOwnerType.TOWN;
     private OwnerPlatformAdapter ownerPlatform = new StandaloneOwnerPlatformAdapter();
+    private CaptureZonesApi apiService;
 
     private enum ContestedProgressPolicy {
         PAUSE,
@@ -509,6 +515,8 @@ extends JavaPlugin {
                 }
             });
         }
+
+        registerApiService();
     }
 
     private void initializeMetrics() {
@@ -1702,6 +1710,8 @@ extends JavaPlugin {
     }
 
     public void onDisable() {
+        unregisterApiService();
+
         if (this.cuboidSelectionManager != null) {
             this.cuboidSelectionManager.clearAllSelections();
         }
@@ -1734,13 +1744,32 @@ extends JavaPlugin {
         cleanupMapProviders();
         
         // Save and cleanup shop system
-        if (shopManager != null) {
-            shopManager.shutdown();
+        if (shopManager != null || shopListener != null || shopEconomyAdapter != null) {
+            shutdownShopSystem();
             getLogger().info("Shop system shutdown complete");
         }
         
         this.cleanupResources();
         this.getLogger().info("CaptureZones has been disabled!");
+    }
+
+    private void registerApiService() {
+        unregisterApiService();
+        this.apiService = new CaptureZonesApiService(this);
+        getServer().getServicesManager().register(
+            CaptureZonesApi.class,
+            this.apiService,
+            this,
+            ServicePriority.Normal
+        );
+        getLogger().info("CaptureZones addon API registered (version " + this.apiService.getApiVersion() + ").");
+    }
+
+    private void unregisterApiService() {
+        if (this.apiService != null) {
+            getServer().getServicesManager().unregister(CaptureZonesApi.class, this.apiService);
+        }
+        this.apiService = null;
     }
 
     private void cleanupResources() {
@@ -1794,6 +1823,7 @@ extends JavaPlugin {
         this.cuboidSelectionManager = null;
         this.zoneItemRewardEditor = null;
         this.permissionRewardManager = null;
+        this.apiService = null;
     }
 
     private void createDefaultConfig() {
@@ -2095,7 +2125,10 @@ extends JavaPlugin {
             }
         }
 
-        String ownerId = buildOwnerId(resolvedType, normalizedName);
+        String ownerId = this.ownerPlatform != null ? this.ownerPlatform.resolveOwnerId(normalizedName, resolvedType) : null;
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            ownerId = buildOwnerId(resolvedType, normalizedName);
+        }
         return new CaptureOwner(resolvedType, ownerId, normalizedName);
     }
 
@@ -2131,7 +2164,7 @@ extends JavaPlugin {
         if (player == null || owner == null || this.ownerPlatform == null) {
             return false;
         }
-        return this.ownerPlatform.doesPlayerMatchOwner(player, owner.getDisplayName(), owner.getType());
+        return this.ownerPlatform.doesPlayerMatchOwner(player, owner);
     }
 
     private boolean areOwnersEquivalent(CaptureOwner first, CaptureOwner second) {
@@ -3694,7 +3727,14 @@ extends JavaPlugin {
     }
 
     public boolean depositPlayerReward(Player player, double amount, String reason) {
-        if (player == null || amount <= 0.0 || this.ownerPlatform == null) {
+        if (player == null || amount <= 0.0) {
+            return false;
+        }
+        ShopEconomyAdapter economy = getOrCreateShopEconomyAdapter();
+        if (economy != null && economy.isAvailable() && economy.deposit(player, amount, reason)) {
+            return true;
+        }
+        if (this.ownerPlatform == null) {
             return false;
         }
         if (this.ownerPlatform.depositFirstCaptureBonus(player.getUniqueId(), amount, reason)) {
@@ -3706,6 +3746,39 @@ extends JavaPlugin {
             reason,
             CaptureOwnerType.PLAYER
         );
+    }
+
+    public boolean canDepositOwnerReward(CaptureOwnerType ownerType) {
+        if (ownerType == null) {
+            return false;
+        }
+        ShopEconomyAdapter economy = getOrCreateShopEconomyAdapter();
+        if (economy != null && economy.isAvailable() && economy.supportsOwnerType(ownerType)) {
+            return true;
+        }
+        return this.ownerPlatform instanceof TownyOwnerPlatformAdapter && ownerType == CaptureOwnerType.TOWN;
+    }
+
+    public boolean depositOwnerReward(String ownerName, CaptureOwnerType ownerType, double amount, String reason) {
+        if (ownerName == null || ownerName.trim().isEmpty() || ownerType == null || amount <= 0.0) {
+            return false;
+        }
+        ShopEconomyAdapter economy = getOrCreateShopEconomyAdapter();
+        if (economy != null && economy.isAvailable() && economy.depositToOwner(ownerName, ownerType, amount, reason)) {
+            return true;
+        }
+        return this.ownerPlatform != null && this.ownerPlatform.depositControlReward(ownerName, amount, reason, ownerType);
+    }
+
+    public boolean depositOwnerReward(CaptureOwner owner, double amount, String reason) {
+        if (owner == null || owner.getType() == null || amount <= 0.0) {
+            return false;
+        }
+        ShopEconomyAdapter economy = getOrCreateShopEconomyAdapter();
+        if (economy != null && economy.isAvailable() && economy.depositToOwner(owner.getDisplayName(), owner.getType(), amount, reason)) {
+            return true;
+        }
+        return this.ownerPlatform != null && this.ownerPlatform.depositControlReward(owner, amount, reason);
     }
 
     public List<String> grantConfiguredPermissionRewardsToPlayer(String pointId, Player recipient, String sourcePrefix) {
@@ -3893,25 +3966,33 @@ extends JavaPlugin {
             boolean shopsEnabled = getConfig().getBoolean("shops.enabled", false);
             
             if (!shopsEnabled) {
+                shutdownShopSystem();
                 getLogger().info("Shop system is disabled in config.");
                 return;
             }
 
-            if (!isTownyIntegrationEnabled()) {
-                getLogger().warning("Shop system requires Towny economy and is disabled in standalone owner mode.");
+            ShopEconomyAdapter adapter = getOrCreateShopEconomyAdapter();
+            if (adapter == null) {
+                shutdownShopSystem();
+                getLogger().warning("Shop system requires a supported economy provider (Towny or Vault).");
                 return;
             }
+            this.shopEconomyAdapter = adapter;
             
             // Initialize shop manager
-            shopManager = new ShopManager(this);
-            getLogger().info("Shop manager initialized.");
+            if (shopManager == null) {
+                shopManager = new ShopManager(this);
+                getLogger().info("Shop manager initialized.");
+            }
             
             // Initialize shop listener
-            shopListener = new ShopListener(this);
-            getServer().getPluginManager().registerEvents(shopListener, this);
-            getLogger().info("Shop listener registered.");
+            if (shopListener == null) {
+                shopListener = new ShopListener(this);
+                getServer().getPluginManager().registerEvents(shopListener, this);
+                getLogger().info("Shop listener registered.");
+            }
             
-            getLogger().info("Shop system enabled! Use /cap shop to access zone shops.");
+            getLogger().info("Shop system enabled using " + adapter.getProviderName() + " economy. Use /cap shop to access zone shops.");
             
         } catch (Exception e) {
             getLogger().severe("Error setting up shop system: " + e.getMessage());
@@ -3919,8 +4000,20 @@ extends JavaPlugin {
         }
     }
 
+    private void shutdownShopSystem() {
+        if (shopManager != null) {
+            shopManager.shutdown();
+            shopManager = null;
+        }
+        if (shopListener != null) {
+            HandlerList.unregisterAll(shopListener);
+            shopListener = null;
+        }
+        shopEconomyAdapter = null;
+    }
+
     public void listCapturePoints(Player player) {
-        player.sendMessage(Messages.get("messages.list.header"));
+        player.sendMessage(colorize("&6&l────────── &e&lCapture Zones &6&l──────────"));
         if (this.capturePoints.isEmpty()) {
             player.sendMessage(Messages.get("messages.list.empty"));
             return;
@@ -4033,6 +4126,9 @@ extends JavaPlugin {
         }
         if (this.shopManager != null) {
             this.shopManager.saveAllShops();
+        }
+        setupShopSystem();
+        if (this.shopManager != null) {
             this.shopManager.loadAllShops();
         }
 
@@ -4122,6 +4218,7 @@ extends JavaPlugin {
         if (this.discordWebhook != null) {
             this.discordWebhook.loadConfig();
         }
+        setupShopSystem();
         if (this.shopManager != null) {
             this.shopManager.loadAllShops();
         }
@@ -4130,6 +4227,85 @@ extends JavaPlugin {
         if (this.kothManager != null) {
             this.kothManager.reload();
         }
+
+        this.lastLegacyTownOwnerRebindCount = repairLegacyTownOwnerIds();
+    }
+
+    public int getLastLegacyTownOwnerRebindCount() {
+        return Math.max(0, this.lastLegacyTownOwnerRebindCount);
+    }
+
+    private int repairLegacyTownOwnerIds() {
+        if (this.ownerPlatform == null || this.capturePoints == null || this.capturePoints.isEmpty()) {
+            return 0;
+        }
+
+        int repaired = 0;
+        for (CapturePoint point : this.capturePoints.values()) {
+            if (point == null) {
+                continue;
+            }
+
+            CaptureOwner controllingOwner = rebindLegacyTownOwner(point.getControllingOwner());
+            if (controllingOwner != null) {
+                point.setControllingOwner(controllingOwner);
+                repaired++;
+            }
+
+            CaptureOwner capturingOwner = rebindLegacyTownOwner(point.getCapturingOwner());
+            if (capturingOwner != null) {
+                point.setCapturingOwner(capturingOwner);
+                repaired++;
+            }
+
+            CaptureOwner previousOwner = rebindLegacyTownOwner(point.getRecaptureLockPreviousOwner());
+            if (previousOwner != null) {
+                point.setRecaptureLockPreviousOwner(previousOwner, point.getRecaptureLockPreviousOwnerUntilTime());
+                repaired++;
+            }
+
+            CaptureOwner previousAttacker = rebindLegacyTownOwner(point.getRecaptureLockPreviousAttacker());
+            if (previousAttacker != null) {
+                point.setRecaptureLockPreviousAttacker(previousAttacker, point.getRecaptureLockPreviousAttackerUntilTime());
+                repaired++;
+            }
+        }
+
+        if (repaired > 0) {
+            saveCapturePoints();
+            getLogger().info("Rebound " + repaired + " legacy Towny owner references to stable owner IDs.");
+        }
+        return repaired;
+    }
+
+    private CaptureOwner rebindLegacyTownOwner(CaptureOwner owner) {
+        if (owner == null || owner.getType() != CaptureOwnerType.TOWN || this.ownerPlatform == null) {
+            return null;
+        }
+
+        String displayName = owner.getDisplayName();
+        if (displayName == null || displayName.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalizedName = this.ownerPlatform.normalizeOwnerName(displayName, CaptureOwnerType.TOWN);
+        if (normalizedName == null || normalizedName.trim().isEmpty()) {
+            return null;
+        }
+
+        String stableId = this.ownerPlatform.resolveOwnerId(normalizedName, CaptureOwnerType.TOWN);
+        if (stableId == null || stableId.trim().isEmpty()) {
+            return null;
+        }
+
+        String currentId = owner.getId();
+        boolean sameId = currentId != null && currentId.trim().equalsIgnoreCase(stableId.trim());
+        boolean sameDisplay = normalizedName.equals(owner.getDisplayName());
+        if (sameId && sameDisplay) {
+            return null;
+        }
+
+        return new CaptureOwner(CaptureOwnerType.TOWN, stableId, normalizedName);
     }
 
     public void reloadLang() {
@@ -4183,6 +4359,7 @@ extends JavaPlugin {
 
     private void saveCapturePointsNow() {
         try {
+            refreshAllCapturePointOwnerReferences();
             if (this.capturePointsFile == null) {
                 this.capturePointsFile = new File(this.getDataFolder(), "capture_points.yml");
             }
@@ -5084,9 +5261,9 @@ extends JavaPlugin {
             if (session != null && session.getInitiatorUUID() != null) {
                 bonusTarget = Bukkit.getPlayer(session.getInitiatorUUID());
             }
-            if (bonusTarget != null && this.ownerPlatform != null) {
-                boolean bonusPaid = this.ownerPlatform.depositFirstCaptureBonus(
-                    bonusTarget.getUniqueId(),
+            if (bonusTarget != null) {
+                boolean bonusPaid = depositPlayerReward(
+                    bonusTarget,
                     bonus,
                     "First capture weekly bonus for " + point.getName()
                 );
@@ -5628,6 +5805,8 @@ extends JavaPlugin {
             return null;
         }
 
+        refreshCapturePointOwnerReferences(point);
+
         CaptureOwner owner = point.getControllingOwner();
         if (owner != null && owner.getDisplayName() != null && !owner.getDisplayName().isEmpty()) {
             return owner;
@@ -5638,6 +5817,65 @@ extends JavaPlugin {
             return null;
         }
         return normalizeOwner(this.defaultOwnerType, legacyOwnerName);
+    }
+
+    public CaptureOwner refreshOwnerReference(CaptureOwner owner) {
+        if (owner == null || this.ownerPlatform == null) {
+            return owner;
+        }
+        CaptureOwner refreshed = this.ownerPlatform.refreshOwner(owner);
+        return refreshed == null ? owner : refreshed;
+    }
+
+    public boolean refreshCapturePointOwnerReferences(CapturePoint point) {
+        if (point == null) {
+            return false;
+        }
+
+        boolean changed = false;
+
+        CaptureOwner controllingOwner = point.getControllingOwner();
+        CaptureOwner refreshedControllingOwner = refreshOwnerReference(controllingOwner);
+        if (refreshedControllingOwner != null && !refreshedControllingOwner.equals(controllingOwner)) {
+            point.setControllingOwner(refreshedControllingOwner);
+            changed = true;
+        }
+
+        CaptureOwner capturingOwner = point.getCapturingOwner();
+        CaptureOwner refreshedCapturingOwner = refreshOwnerReference(capturingOwner);
+        if (refreshedCapturingOwner != null && !refreshedCapturingOwner.equals(capturingOwner)) {
+            point.setCapturingOwner(refreshedCapturingOwner);
+            changed = true;
+        }
+
+        CaptureOwner previousOwner = point.getRecaptureLockPreviousOwner();
+        CaptureOwner refreshedPreviousOwner = refreshOwnerReference(previousOwner);
+        if (refreshedPreviousOwner != null && !refreshedPreviousOwner.equals(previousOwner)) {
+            point.setRecaptureLockPreviousOwner(refreshedPreviousOwner, point.getRecaptureLockPreviousOwnerUntilTime());
+            changed = true;
+        }
+
+        CaptureOwner previousAttacker = point.getRecaptureLockPreviousAttacker();
+        CaptureOwner refreshedPreviousAttacker = refreshOwnerReference(previousAttacker);
+        if (refreshedPreviousAttacker != null && !refreshedPreviousAttacker.equals(previousAttacker)) {
+            point.setRecaptureLockPreviousAttacker(refreshedPreviousAttacker, point.getRecaptureLockPreviousAttackerUntilTime());
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private boolean refreshAllCapturePointOwnerReferences() {
+        if (this.capturePoints == null || this.capturePoints.isEmpty()) {
+            return false;
+        }
+        boolean changed = false;
+        for (CapturePoint point : this.capturePoints.values()) {
+            if (refreshCapturePointOwnerReferences(point)) {
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     public String getItemRewardDisplay(String pointId) {
@@ -6697,13 +6935,8 @@ extends JavaPlugin {
                     rewardContextPlayer
                 );
                 double resolvedEconomyReward = permissionResolution.finalAmount;
-                if (ownerType == CaptureOwnerType.TOWN && isTownyIntegrationEnabled()) {
-                    boolean deposited = this.ownerPlatform != null && this.ownerPlatform.depositControlReward(
-                        ownerName,
-                        resolvedEconomyReward,
-                        "Reward for controlling " + point.getName(),
-                        ownerType
-                    );
+                if (resolvedEconomyReward > 0.0 && canDepositOwnerReward(ownerType)) {
+                    boolean deposited = depositOwnerReward(controllingOwner, resolvedEconomyReward, "Reward for controlling " + point.getName());
                     if (!deposited) {
                         this.getLogger().warning("Failed to deposit daily reward for owner '" + ownerName + "'.");
                     } else {
@@ -6853,16 +7086,11 @@ extends JavaPlugin {
                     rewardContextPlayer
                 );
                 double resolvedHourlyReward = permissionResolution.finalAmount;
-                if (ownerType == CaptureOwnerType.TOWN && isTownyIntegrationEnabled()) {
+                if (resolvedHourlyReward > 0.0 && canDepositOwnerReward(ownerType)) {
                     if (debug) {
                         this.getLogger().info("Depositing " + resolvedHourlyReward + " to owner " + ownerName);
                     }
-                    boolean deposited = this.ownerPlatform.depositControlReward(
-                        ownerName,
-                        resolvedHourlyReward,
-                        "Hourly reward for controlling " + point.getName(),
-                        ownerType
-                    );
+                    boolean deposited = depositOwnerReward(controllingOwner, resolvedHourlyReward, "Hourly reward for controlling " + point.getName());
                     if (!deposited) {
                         this.getLogger().warning("Failed to deposit hourly reward for owner '" + ownerName + "'.");
                     } else {
@@ -7199,6 +7427,7 @@ extends JavaPlugin {
     }
 
     public Map<String, CapturePoint> getCapturePoints() {
+        refreshAllCapturePointOwnerReferences();
         return this.capturePoints;
     }
 
@@ -7305,7 +7534,9 @@ extends JavaPlugin {
         if (id == null || id.trim().isEmpty()) {
             return null;
         }
-        return this.capturePoints.get(id.trim());
+        CapturePoint point = this.capturePoints.get(id.trim());
+        refreshCapturePointOwnerReferences(point);
+        return point;
     }
 
     public CaptureSession getActiveSession(String pointId) {
@@ -7405,7 +7636,7 @@ extends JavaPlugin {
         if (this.ownerPlatform == null) {
             return "#8B0000";
         }
-        return this.ownerPlatform.resolveMapColorHex(owner.getDisplayName(), owner.getType(), "#8B0000");
+        return this.ownerPlatform.resolveMapColorHex(owner, "#8B0000");
     }
 
     private String getTownColor(String townName) {
@@ -7740,6 +7971,81 @@ extends JavaPlugin {
     public ShopManager getShopManager() {
         return shopManager;
     }
+
+    public ShopEconomyAdapter getShopEconomyAdapter() {
+        return shopEconomyAdapter;
+    }
+
+    public ShopEconomyAdapter getOrCreateShopEconomyAdapter() {
+        ShopEconomyAdapter resolved = resolveShopEconomyAdapter();
+        if (resolved == null || !resolved.isAvailable()) {
+            shopEconomyAdapter = null;
+            return null;
+        }
+        if (shopEconomyAdapter != null
+            && shopEconomyAdapter.getClass().equals(resolved.getClass())
+            && shopEconomyAdapter.isAvailable()) {
+            return shopEconomyAdapter;
+        }
+        shopEconomyAdapter = resolved;
+        return shopEconomyAdapter;
+    }
+
+    /**
+     * Get the shop manager, creating it on demand when the shop system is enabled.
+     */
+    public ShopManager getOrCreateShopManagerIfEnabled() {
+        if (!getConfig().getBoolean("shops.enabled", false)) {
+            shutdownShopSystem();
+            return null;
+        }
+        if (shopManager != null) {
+            if (getOrCreateShopEconomyAdapter() == null) {
+                shutdownShopSystem();
+                return null;
+            }
+            return shopManager;
+        }
+        if (getOrCreateShopEconomyAdapter() == null) {
+            return null;
+        }
+        setupShopSystem();
+        return shopManager;
+    }
+
+    public String getShopSystemUnavailableReason() {
+        if (!getConfig().getBoolean("shops.enabled", false)) {
+            return "Shop system is disabled in config (shops.enabled=false).";
+        }
+        if (getOrCreateShopEconomyAdapter() != null) {
+            return "";
+        }
+        return "Shop system requires a supported economy provider (Towny or Vault).";
+    }
+
+    public String getShopEconomyProviderName() {
+        ShopEconomyAdapter adapter = getOrCreateShopEconomyAdapter();
+        if (adapter != null && adapter.isAvailable()) {
+            return adapter.getProviderName();
+        }
+        return "";
+    }
+
+    private ShopEconomyAdapter resolveShopEconomyAdapter() {
+        if (this.ownerPlatform instanceof TownyOwnerPlatformAdapter && isTownyIntegrationEnabled()) {
+            return new TownyShopEconomyAdapter();
+        }
+        if (getServer().getPluginManager().getPlugin("Vault") != null) {
+            ShopEconomyAdapter vaultAdapter = new VaultShopEconomyAdapter(this);
+            if (vaultAdapter.isAvailable()) {
+                return vaultAdapter;
+            }
+        }
+        if (isTownyIntegrationEnabled()) {
+            return new TownyShopEconomyAdapter();
+        }
+        return null;
+    }
     
     /**
      * Get the shop listener
@@ -7750,6 +8056,10 @@ extends JavaPlugin {
 
     public ZoneItemRewardEditor getZoneItemRewardEditor() {
         return zoneItemRewardEditor;
+    }
+
+    public CaptureZonesApi getApiService() {
+        return apiService;
     }
 }
 

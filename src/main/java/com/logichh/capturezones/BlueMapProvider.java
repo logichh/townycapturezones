@@ -705,7 +705,9 @@ public class BlueMapProvider implements MapProvider {
         if (adapter == null) {
             return null;
         }
-        String colorHex = adapter.resolveMapColorHex(ownerName, ownerType, null);
+        String colorHex = owner != null
+            ? adapter.resolveMapColorHex(owner, null)
+            : adapter.resolveMapColorHex(ownerName, ownerType, null);
         if (colorHex == null || colorHex.trim().isEmpty()) {
             return null;
         }

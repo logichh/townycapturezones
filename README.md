@@ -52,6 +52,34 @@ Optional integrations:
 - MythicMobs
 - WorldGuard
 
+## Addon API (For External Web Panel Plugins)
+
+CaptureZones now registers a Bukkit service for addon plugins:
+
+- Service interface: `com.logichh.capturezones.api.CaptureZonesApi`
+- Result type: `com.logichh.capturezones.api.CaptureZonesActionResult`
+- API version constant: `CaptureZonesApi.API_VERSION`
+
+### Resolve the service from another plugin
+
+```java
+RegisteredServiceProvider<CaptureZonesApi> rsp =
+    Bukkit.getServicesManager().getRegistration(CaptureZonesApi.class);
+CaptureZonesApi api = rsp == null ? null : rsp.getProvider();
+```
+
+Your addon should declare a dependency on CaptureZones in its own `plugin.yml`:
+
+```yaml
+depend: [CaptureZones]
+```
+
+### What the API exposes
+
+- Full snapshots: overview, zones, active captures, KOTH, shops, statistics, configs, data files.
+- Mutations/actions: zone lifecycle, capture controls, KOTH controls, shop controls, stats controls, config writes/reloads.
+- Capability discovery via `getCapabilities()` so addons can feature-gate safely.
+
 ## Build From Source
 
 ```bash

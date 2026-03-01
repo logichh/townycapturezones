@@ -717,6 +717,12 @@ public class CaptureCommands implements CommandExecutor {
         try {
             plugin.repairAllConfigsAndData(false);
             sender.sendMessage(Messages.get("messages.migration-success"));
+            int rebound = plugin.getLastLegacyTownOwnerRebindCount();
+            if (rebound > 0) {
+                sender.sendMessage(plugin.colorize("&7Rebound &f" + rebound + "&7 legacy Towny owner references to stable IDs."));
+            } else {
+                sender.sendMessage(plugin.colorize("&7No legacy Towny owner references needed rebinding."));
+            }
             plugin.getLogger().info(String.format("Schema repair executed by %s (non-destructive)", sender.getName()));
         } catch (Exception e) {
             String reason = e.getMessage() == null ? "Unknown error" : e.getMessage();
@@ -731,7 +737,7 @@ public class CaptureCommands implements CommandExecutor {
             player.sendMessage(Messages.get("messages.zone.no-points"));
             return;
         }
-        player.sendMessage(Messages.get("messages.zone.header"));
+        player.sendMessage(plugin.colorize("&6&l────────── &e&lCapture Zones &6&l──────────"));
         for (CapturePoint point : points.values()) {
             String status;
             String controllingTown = point.getControllingTown();
@@ -747,10 +753,10 @@ public class CaptureCommands implements CommandExecutor {
             player.sendMessage(Messages.get("messages.zone.point-entry", 
                 Map.of("name", point.getName(), "status", status)));
         }
-        player.sendMessage(Messages.get("messages.zone.stats-header"));
+        player.sendMessage(plugin.colorize("&6&l────────── &e&lStatistics &6&l──────────"));
         player.sendMessage(Messages.get("messages.zone.total-points", Map.of("count", String.valueOf(points.size()))));
         player.sendMessage(Messages.get("messages.zone.active-captures", Map.of("count", String.valueOf(this.plugin.getActiveSessions().size()))));
-        player.sendMessage(Messages.get("messages.zone.footer"));
+        player.sendMessage(plugin.colorize("&6&l──────────"));
     }
 
     private void showPointInfo(Player player, String pointId) {
@@ -1776,7 +1782,7 @@ public class CaptureCommands implements CommandExecutor {
      * Handle shop commands
      */
     private void handleShopCommand(Player player, String[] args) {
-        ShopManager shopManager = plugin.getShopManager();
+        ShopManager shopManager = plugin.getOrCreateShopManagerIfEnabled();
         if (shopManager == null) {
             player.sendMessage(Messages.get("errors.shop.system-disabled"));
             return;

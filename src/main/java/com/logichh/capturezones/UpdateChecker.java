@@ -19,6 +19,7 @@ import java.util.logging.Logger;
  * Checks for plugin updates via Modrinth API
  */
 public class UpdateChecker {
+    private static final String PROJECT_PAGE_URL = "https://modrinth.com/plugin/capturezones";
     
     private final CaptureZones plugin;
     private final Logger logger;
@@ -26,7 +27,6 @@ public class UpdateChecker {
     private final String currentVersion;
     
     private String latestVersion = null;
-    private String downloadUrl = null;
     private String changelog = null;
     private long lastCheck = 0;
     private static final long CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
@@ -80,13 +80,6 @@ public class UpdateChecker {
                 // Get the latest version (first in array)
                 JsonObject latestVersionObj = versions.get(0).getAsJsonObject();
                 latestVersion = latestVersionObj.get("version_number").getAsString();
-                
-                // Get download URL
-                JsonArray files = latestVersionObj.getAsJsonArray("files");
-                if (files.size() > 0) {
-                    JsonObject primaryFile = files.get(0).getAsJsonObject();
-                    downloadUrl = primaryFile.get("url").getAsString();
-                }
                 
                 // Get changelog (truncate if too long)
                 if (latestVersionObj.has("changelog")) {
@@ -171,41 +164,54 @@ public class UpdateChecker {
             }
             // Send title/subtitle
             player.sendTitle(
-                ChatColor.GOLD + "⚡ " + ChatColor.YELLOW + ChatColor.BOLD + "Update Available" + ChatColor.GOLD + " ⚡",
-                ChatColor.GRAY + "Current: " + ChatColor.WHITE + currentVersion + ChatColor.GRAY + " → Latest: " + ChatColor.GREEN + latestVersion,
-                10, 70, 20
+                ChatColor.GOLD + "CaptureZones Update",
+                ChatColor.WHITE + currentVersion + ChatColor.DARK_GRAY + " -> " + ChatColor.GREEN + latestVersion,
+                8, 60, 16
             );
             
-            // Send fancy chat notification
+            // Send compact chat notification
             player.sendMessage("");
-            player.sendMessage(ChatColor.GOLD + "╔═══════════════════════════════════════════════╗");
-            player.sendMessage(ChatColor.GOLD + "║ " + ChatColor.YELLOW + ChatColor.BOLD + "CaptureZones Update Available!" + ChatColor.GOLD + "         ║");
-            player.sendMessage(ChatColor.GOLD + "║" + ChatColor.GRAY + "                                               " + ChatColor.GOLD + "║");
-            player.sendMessage(ChatColor.GOLD + "║ " + ChatColor.WHITE + "Current Version: " + ChatColor.RED + currentVersion + ChatColor.GRAY + "                       " + ChatColor.GOLD + "║");
-            player.sendMessage(ChatColor.GOLD + "║ " + ChatColor.WHITE + "Latest Version:  " + ChatColor.GREEN + ChatColor.BOLD + latestVersion + ChatColor.GRAY + "                       " + ChatColor.GOLD + "║");
-            player.sendMessage(ChatColor.GOLD + "║" + ChatColor.GRAY + "                                               " + ChatColor.GOLD + "║");
-            
-            String resolvedDownloadUrl = (downloadUrl != null && !downloadUrl.trim().isEmpty())
-                ? downloadUrl
-                : "https://modrinth.com/plugin/capturezones";
-            String downloadMsg = ChatColor.GOLD + "║ " + ChatColor.AQUA + ChatColor.UNDERLINE + "Click here to download" +
-                                ChatColor.GRAY + "                       " + ChatColor.GOLD + "║";
+            player.sendMessage(ChatColor.DARK_GRAY + "" + ChatColor.STRIKETHROUGH + "----------------------------------------");
+            player.sendMessage(ChatColor.YELLOW + "" + ChatColor.BOLD + "CaptureZones update available");
+            player.sendMessage(ChatColor.GRAY + "Current: " + ChatColor.RED + currentVersion);
+            player.sendMessage(ChatColor.GRAY + "Latest:  " + ChatColor.GREEN + latestVersion);
+            if (changelog != null && !changelog.trim().isEmpty()) {
+                player.sendMessage(ChatColor.GRAY + "Notes: " + ChatColor.WHITE + formatChangelogPreview(changelog));
+            }
 
-            net.md_5.bungee.api.chat.TextComponent downloadComponent = new net.md_5.bungee.api.chat.TextComponent(downloadMsg);
+            net.md_5.bungee.api.chat.TextComponent downloadComponent =
+                new net.md_5.bungee.api.chat.TextComponent(ChatColor.AQUA + "" + ChatColor.UNDERLINE + "Open CaptureZones on Modrinth");
             downloadComponent.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
                 net.md_5.bungee.api.chat.ClickEvent.Action.OPEN_URL,
-                resolvedDownloadUrl
+                PROJECT_PAGE_URL
             ));
             downloadComponent.setHoverEvent(new net.md_5.bungee.api.chat.HoverEvent(
                 net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT,
-                new net.md_5.bungee.api.chat.ComponentBuilder("Open CaptureZones download page").create()
+                new net.md_5.bungee.api.chat.ComponentBuilder("Open the official CaptureZones Modrinth page").create()
             ));
             player.spigot().sendMessage(downloadComponent);
-            
-            player.sendMessage(ChatColor.GOLD + "╚═══════════════════════════════════════════════╝");
+            player.sendMessage(ChatColor.DARK_GRAY + "" + ChatColor.STRIKETHROUGH + "----------------------------------------");
             player.sendMessage("");
             
         }, 60L); // Show after 3 seconds
+    }
+
+    private String formatChangelogPreview(String text) {
+        if (text == null) {
+            return "";
+        }
+        String flattened = text
+            .replace('\r', ' ')
+            .replace('\n', ' ')
+            .replace("`", "")
+            .replace("*", "")
+            .replace("_", "")
+            .replaceAll("\\s+", " ")
+            .trim();
+        if (flattened.length() <= 100) {
+            return flattened;
+        }
+        return flattened.substring(0, 100) + "...";
     }
     
     public String getCurrentVersion() {
@@ -217,7 +223,7 @@ public class UpdateChecker {
     }
     
     public String getDownloadUrl() {
-        return downloadUrl;
+        return PROJECT_PAGE_URL;
     }
 }
 

@@ -1,6 +1,50 @@
 # CaptureZones - Change Log
 
-## Version 1.1.2 - [2026-02-21]
+## Version 1.1.3 - [2026-02-28]
+
+### Added
+- New addon-facing Bukkit service API for external integrations:
+  - `com.logichh.capturezones.api.CaptureZonesApi`
+  - `com.logichh.capturezones.api.CaptureZonesActionResult`
+- Core plugin now registers/unregisters the API service on enable/disable.
+- API includes:
+  - Snapshot endpoints (overview, zones, captures, KOTH, shops, statistics, configs, data files)
+  - Safe action methods for admin flows (zone/capture/KOTH/shop/stats/config operations)
+  - Capability discovery via `getCapabilities()`
+- `repairSchema(...)` API responses now report `legacyTownOwnerRebindCount` after repair runs.
+
+### Economy & Shops
+- Added a dual-mode economy path for shops and money rewards:
+  - Uses Towny accounts when Towny ownership is active.
+  - Falls back to Vault-backed player economy support where available.
+- Shops are no longer locked to Towny-only startup conditions when a valid Vault economy provider is installed.
+- Added `Vault` support metadata so economy providers can be resolved cleanly in standalone deployments.
+
+### Ownership & Migration
+- Town-owned zones now store stable Towny UUID-backed owner IDs instead of name-derived IDs for newly normalized Towny owners.
+- Towny-backed owner display names now refresh from live Towny data, so zone ownership labels follow town renames once the zone is using a stable owner ID.
+- `/cap admin repair` and `/cap admin migrate` now also attempt to rebind legacy Towny owner references to stable IDs when the current town still resolves.
+- Repair output now reports how many legacy Towny owner references were rebound.
+
+### API & Stability
+- Active capture snapshot rows now include:
+  - `zoneName`
+  - `initialPreparationTime`
+  - `initialCaptureTime`
+- Shop economy backend resolution now revalidates correctly across reloads and provider changes instead of holding a stale backend selection.
+
+### Commands & UX
+- `/cap list` output was cleaned up:
+  - Shorter footer line
+  - Consistent `Capture Zones` header text instead of old `Capture Points` wording
+- The in-game update notification was redesigned into a cleaner compact format.
+
+### Fixes
+- Fixed Towny rename handling so UUID-backed town owners no longer keep showing stale cached names after a town rename.
+- Fixed the in-game update notification link so it always points to the official Modrinth page:
+  - `https://modrinth.com/plugin/capturezones`
+
+## Version 1.1.2 - [2026-02-27]
 
 ### Commands & UX
 - Consolidated admin command routing under `/cap admin ...` and updated help output to match.

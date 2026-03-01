@@ -140,6 +140,21 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
     }
 
     @Override
+    public String resolveOwnerId(String ownerName, CaptureOwnerType ownerType) {
+        if (ownerName == null || ownerType == null) {
+            return null;
+        }
+        if (ownerType != CaptureOwnerType.TOWN) {
+            return null;
+        }
+        Town town = resolveTownByName(ownerName);
+        if (town == null || town.getUUID() == null) {
+            return null;
+        }
+        return town.getUUID().toString();
+    }
+
+    @Override
     public boolean ownerExists(String ownerName, CaptureOwnerType ownerType) {
         return normalizeOwnerName(ownerName, ownerType) != null;
     }
@@ -150,7 +165,24 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
             return false;
         }
         try {
-            Town town = TownyAPI.getInstance().getTown(ownerName);
+            Town town = resolveTownByName(ownerName);
+            if (town == null || town.getAccount() == null) {
+                return false;
+            }
+            town.getAccount().deposit(amount, reason);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean depositControlReward(CaptureOwner owner, double amount, String reason) {
+        if (owner == null || owner.getType() != CaptureOwnerType.TOWN) {
+            return false;
+        }
+        try {
+            Town town = resolveTown(owner);
             if (town == null || town.getAccount() == null) {
                 return false;
             }
@@ -185,7 +217,7 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
         }
         try {
             if (ownerType == CaptureOwnerType.TOWN) {
-                Town town = TownyAPI.getInstance().getTown(ownerName);
+                Town town = resolveTownByName(ownerName);
                 if (town != null) {
                     Color color = town.getMapColor();
                     if (color != null) {
@@ -217,17 +249,111 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
     }
 
     @Override
+    public String resolveMapColorHex(CaptureOwner owner, String fallbackHex) {
+        if (owner == null || owner.getType() == null) {
+            return fallbackHex;
+        }
+        try {
+            if (owner.getType() == CaptureOwnerType.TOWN) {
+                Town town = resolveTown(owner);
+                if (town != null) {
+                    Color color = town.getMapColor();
+                    if (color != null) {
+                        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+                    }
+                }
+                return fallbackHex;
+            }
+            return resolveMapColorHex(owner.getDisplayName(), owner.getType(), fallbackHex);
+        } catch (Exception ignored) {
+            return fallbackHex;
+        }
+    }
+
+    @Override
+    public boolean doesPlayerMatchOwner(Player player, CaptureOwner owner) {
+        if (player == null || owner == null || owner.getType() == null) {
+            return false;
+        }
+        try {
+            switch (owner.getType()) {
+                case PLAYER:
+                    UUID ownerPlayerId = parseUuid(owner.getId());
+                    if (ownerPlayerId != null) {
+                        return ownerPlayerId.equals(player.getUniqueId());
+                    }
+                    return owner.getDisplayName() != null && owner.getDisplayName().equalsIgnoreCase(player.getName());
+                case TOWN:
+                    Town playerTown = TownyAPI.getInstance().getTown(player);
+                    Town ownerTown = resolveTown(owner);
+                    return playerTown != null && ownerTown != null && sameTown(playerTown, ownerTown);
+                case NATION:
+                    Town playerNationTown = TownyAPI.getInstance().getTown(player);
+                    if (playerNationTown == null || !playerNationTown.hasNation()) {
+                        return false;
+                    }
+                    String ownerNationName = resolveOwnerNationName(owner);
+                    return ownerNationName != null && ownerNationName.equalsIgnoreCase(playerNationTown.getNation().getName());
+                default:
+                    return false;
+            }
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    @Override
+    public CaptureOwner refreshOwner(CaptureOwner owner) {
+        if (owner == null || owner.getType() == null) {
+            return owner;
+        }
+        try {
+            if (owner.getType() == CaptureOwnerType.TOWN) {
+                Town town = resolveTown(owner);
+                if (town == null) {
+                    return owner;
+                }
+                String refreshedId = town.getUUID() != null ? town.getUUID().toString() : owner.getId();
+                String refreshedName = town.getName();
+                boolean sameId = owner.getId() != null && owner.getId().equalsIgnoreCase(refreshedId);
+                boolean sameName = owner.getDisplayName() != null && owner.getDisplayName().equals(refreshedName);
+                if (sameId && sameName) {
+                    return owner;
+                }
+                return new CaptureOwner(CaptureOwnerType.TOWN, refreshedId, refreshedName);
+            }
+            if (owner.getType() == CaptureOwnerType.PLAYER) {
+                Resident resident = resolveResident(owner);
+                if (resident == null) {
+                    return owner;
+                }
+                String refreshedId = resident.getUUID() != null ? resident.getUUID().toString() : owner.getId();
+                String refreshedName = resident.getName();
+                boolean sameId = owner.getId() != null && owner.getId().equalsIgnoreCase(refreshedId);
+                boolean sameName = owner.getDisplayName() != null && owner.getDisplayName().equals(refreshedName);
+                if (sameId && sameName) {
+                    return owner;
+                }
+                return new CaptureOwner(CaptureOwnerType.PLAYER, refreshedId, refreshedName);
+            }
+        } catch (Exception ignored) {
+            return owner;
+        }
+        return owner;
+    }
+
+    @Override
     public boolean isPlayerInSameTown(Player player, CaptureOwner owner) {
         if (player == null || owner == null) {
             return false;
         }
         try {
             Town playerTown = TownyAPI.getInstance().getTown(player);
-            if (playerTown == null) {
+            Town ownerTown = resolveTown(owner);
+            if (playerTown == null || ownerTown == null) {
                 return false;
             }
-            String ownerTownName = resolveOwnerTownName(owner);
-            return ownerTownName != null && ownerTownName.equalsIgnoreCase(playerTown.getName());
+            return sameTown(playerTown, ownerTown);
         } catch (Exception ex) {
             return false;
         }
@@ -252,38 +378,8 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
     }
 
     private String resolveOwnerTownName(CaptureOwner owner) {
-        if (owner == null || owner.getType() == null) {
-            return null;
-        }
-        try {
-            if (owner.getType() == CaptureOwnerType.TOWN) {
-                Town town = TownyAPI.getInstance().getTown(owner.getDisplayName());
-                return town != null ? town.getName() : null;
-            }
-
-            if (owner.getType() == CaptureOwnerType.PLAYER) {
-                Resident resident = null;
-                String id = owner.getId();
-                if (id != null && !id.trim().isEmpty()) {
-                    try {
-                        resident = TownyAPI.getInstance().getResident(UUID.fromString(id.trim()));
-                    } catch (Exception ignored) {
-                        // Fallback to display-name lookup.
-                    }
-                }
-                if (resident == null && owner.getDisplayName() != null && !owner.getDisplayName().trim().isEmpty()) {
-                    resident = TownyAPI.getInstance().getResident(owner.getDisplayName().trim());
-                }
-                if (resident == null || !resident.hasTown()) {
-                    return null;
-                }
-                Town town = resident.getTown();
-                return town != null ? town.getName() : null;
-            }
-        } catch (Exception ignored) {
-            // Return null below.
-        }
-        return null;
+        Town town = resolveTown(owner);
+        return town != null ? town.getName() : null;
     }
 
     private String resolveOwnerNationName(CaptureOwner owner) {
@@ -328,6 +424,110 @@ public final class TownyOwnerPlatformAdapter implements OwnerPlatformAdapter {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private Town resolveTown(CaptureOwner owner) {
+        if (owner == null || owner.getType() == null) {
+            return null;
+        }
+        try {
+            if (owner.getType() == CaptureOwnerType.TOWN) {
+                Town town = resolveTownById(owner.getId());
+                if (town != null) {
+                    return town;
+                }
+                return resolveTownByName(owner.getDisplayName());
+            }
+
+            if (owner.getType() == CaptureOwnerType.PLAYER) {
+                Resident resident = resolveResident(owner);
+                if (resident == null || !resident.hasTown()) {
+                    return null;
+                }
+                return resident.getTown();
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private Resident resolveResident(CaptureOwner owner) {
+        if (owner == null) {
+            return null;
+        }
+        try {
+            UUID residentId = parseUuid(owner.getId());
+            if (residentId != null) {
+                Resident resident = TownyAPI.getInstance().getResident(residentId);
+                if (resident != null) {
+                    return resident;
+                }
+            }
+            String displayName = owner.getDisplayName();
+            if (displayName != null && !displayName.trim().isEmpty()) {
+                return TownyAPI.getInstance().getResident(displayName.trim());
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private Town resolveTownByName(String ownerName) {
+        if (ownerName == null || ownerName.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return TownyAPI.getInstance().getTown(ownerName.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Town resolveTownById(String ownerId) {
+        UUID townId = parseUuid(ownerId);
+        if (townId == null) {
+            return null;
+        }
+        try {
+            for (Town town : TownyAPI.getInstance().getTowns()) {
+                if (town == null || town.getUUID() == null) {
+                    continue;
+                }
+                if (town.getUUID().equals(townId)) {
+                    return town;
+                }
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private UUID parseUuid(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean sameTown(Town first, Town second) {
+        if (first == null || second == null) {
+            return false;
+        }
+        try {
+            if (first.getUUID() != null && second.getUUID() != null) {
+                return first.getUUID().equals(second.getUUID());
+            }
+        } catch (Exception ignored) {
+            // Fallback to name compare below.
+        }
+        return first.getName().equalsIgnoreCase(second.getName());
     }
 }
 

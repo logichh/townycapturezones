@@ -42,7 +42,9 @@ public final class CaptureOwner {
             return false;
         }
         if (this.id != null && other.id != null) {
-            return this.id.equalsIgnoreCase(other.id);
+            if (this.id.equalsIgnoreCase(other.id)) {
+                return true;
+            }
         }
         return this.displayName != null
             && other.displayName != null

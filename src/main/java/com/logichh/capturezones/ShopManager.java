@@ -5,8 +5,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.Material;
-import com.palmergames.bukkit.towny.TownyAPI;
-import com.palmergames.bukkit.towny.object.Resident;
 
 import java.io.File;
 import java.util.*;
@@ -214,7 +212,8 @@ public class ShopManager {
      * Process a buy transaction
      */
     public boolean processBuy(Player player, String zoneId, int slot, int quantity) {
-        if (!plugin.isTownyIntegrationEnabled()) {
+        ShopEconomyAdapter economy = plugin.getOrCreateShopEconomyAdapter();
+        if (economy == null || !economy.isAvailable()) {
             player.sendMessage(Messages.get("errors.shop.no-account"));
             return false;
         }
@@ -245,13 +244,12 @@ public class ShopManager {
         
         // Check player balance
         try {
-            Resident resident = TownyAPI.getInstance().getResident(player.getUniqueId());
-            if (resident == null || resident.getAccount() == null) {
+            if (!economy.hasAccount(player)) {
                 player.sendMessage(Messages.get("errors.shop.no-account"));
                 return false;
             }
             
-            if (!resident.getAccount().canPayFromHoldings(totalCost)) {
+            if (!economy.has(player, totalCost)) {
                 player.sendMessage(Messages.get("errors.shop.insufficient-funds", Map.of(
                     "cost", String.format("%.2f", totalCost)
                 )));
@@ -259,13 +257,16 @@ public class ShopManager {
             }
             
             // Process payment
-            resident.getAccount().withdraw(totalCost, "Shop purchase");
+            if (!economy.withdraw(player, totalCost, "Shop purchase")) {
+                player.sendMessage(Messages.get("errors.shop.transaction-failed"));
+                return false;
+            }
             
             // Give items
             Map<Integer, ItemStack> leftovers = player.getInventory().addItem(itemStack);
             if (!leftovers.isEmpty()) {
                 // Refund if inventory couldn't accept the items
-                resident.getAccount().deposit(totalCost, "Shop purchase refund");
+                economy.deposit(player, totalCost, "Shop purchase refund");
                 player.sendMessage(Messages.get("errors.shop.inventory-full"));
                 return false;
             }
@@ -306,7 +307,8 @@ public class ShopManager {
      * Process a sell transaction
      */
     public boolean processSell(Player player, String zoneId, int slot, int quantity) {
-        if (!plugin.isTownyIntegrationEnabled()) {
+        ShopEconomyAdapter economy = plugin.getOrCreateShopEconomyAdapter();
+        if (economy == null || !economy.isAvailable()) {
             player.sendMessage(Messages.get("errors.shop.no-account"));
             return false;
         }
@@ -337,8 +339,7 @@ public class ShopManager {
         double totalEarnings = item.getEffectiveSellPrice() * quantity;
         
         try {
-            Resident resident = TownyAPI.getInstance().getResident(player.getUniqueId());
-            if (resident == null || resident.getAccount() == null) {
+            if (!economy.hasAccount(player)) {
                 player.sendMessage(Messages.get("errors.shop.no-account"));
                 return false;
             }
@@ -361,7 +362,10 @@ public class ShopManager {
             }
             
             // Give money
-            resident.getAccount().deposit(totalEarnings, "Shop sale");
+            if (!economy.deposit(player, totalEarnings, "Shop sale")) {
+                player.sendMessage(Messages.get("errors.shop.transaction-failed"));
+                return false;
+            }
             
             // Update stock
             if (shop.getStockSystem() != ShopData.StockSystem.INFINITE) {
